@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Exercice — Appariement des brins d'ADN</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: system-ui, sans-serif;
+    background: #f4f4f8;
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 2rem 1rem;
+  }
+  .card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 2rem;
+    max-width: 820px;
+    width: 100%;
+    border: 1px solid #e2e2e8;
+  }
+  h1 {
+    font-size: 20px;
+    font-weight: 600;
+    color: #1a1a2e;
+    margin-bottom: 6px;
+  }
+  .subtitle {
+    font-size: 13px;
+    color: #6b6b80;
+    margin-bottom: 1.5rem;
+    line-height: 1.6;
+  }
+  .subtitle span.blue { color: #185FA5; font-weight: 600; }
+  .subtitle span.green { color: #0F6E56; font-weight: 600; }
+  .top-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.25rem;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .score-text { font-size: 14px; color: #6b6b80; }
+  .reset-btn {
+    font-size: 13px;
+    padding: 7px 16px;
+    border-radius: 8px;
+    border: 1px solid #c8c8d8;
+    background: #fff;
+    cursor: pointer;
+    color: #1a1a2e;
+    transition: background 0.15s;
+  }
+  .reset-btn:hover { background: #f0f0f6; }
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 56px 1fr;
+    gap: 0 8px;
+    align-items: start;
+  }
+  .col-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #6b6b80;
+    margin-bottom: 10px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  .strand-col { display: flex; flex-direction: column; gap: 8px; }
+  .strand-btn {
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 11px 14px;
+    border-radius: 8px;
+    border: 1.5px solid #d0d0dc;
+    background: #fff;
+    color: #1a1a2e;
+    cursor: pointer;
+    width: 100%;
+    text-align: left;
+    transition: background 0.12s, border-color 0.12s;
+    letter-spacing: 0.06em;
+  }
+  .strand-btn:hover { background: #f5f5fb; border-color: #b0b0c8; }
+  .strand-btn.selected-sense { border-color: #185FA5; background: #e6f1fb; color: #0C447C; }
+  .strand-btn.selected-anti  { border-color: #0F6E56; background: #e1f5ee; color: #085041; }
+  .strand-btn.correct        { border-color: #3B6D11; background: #eaf3de; color: #27500A; pointer-events: none; }
+  .strand-btn.wrong          { border-color: #A32D2D; background: #fcebeb; color: #791F1F; }
+  .strand-btn.disabled       { opacity: 0.38; pointer-events: none; }
+  #connector-svg { display: block; overflow: visible; }
+  .result-msg {
+    margin-top: 1.25rem;
+    font-size: 14px;
+    font-weight: 500;
+    min-height: 24px;
+    color: #3B6D11;
+    background: #eaf3de;
+    border-radius: 8px;
+    padding: 10px 14px;
+    display: none;
+  }
+  .legend {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid #e8e8f0;
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: #6b6b80;
+  }
+  .legend-dot {
+    width: 12px; height: 12px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>Appariement des brins d'ADN</h1>
+  <p class="subtitle">
+    Clique sur un brin <span class="blue">5'→3'</span>, puis sur son complémentaire <span class="green">3'→5'</span>.<br>
+    Rappel&nbsp;: A s'apparie avec T &nbsp;·&nbsp; G s'apparie avec C. Attention, 2 brins sont des intrus !
+  </p>
+
+  <div class="top-bar">
+    <span class="score-text" id="score-text">0 / 4 paires trouvées</span>
+    <button class="reset-btn" onclick="resetAll()">↺ Recommencer</button>
+  </div>
+
+  <div class="grid">
+    <div>
+      <div class="col-label">Brins sens &nbsp; 5'→3'</div>
+      <div class="strand-col" id="sense-col"></div>
+    </div>
+    <div style="padding-top: 28px;">
+      <svg id="connector-svg" width="56" height="10"></svg>
+    </div>
+    <div>
+      <div class="col-label">Brins anti-sens &nbsp; 3'→5'</div>
+      <div class="strand-col" id="anti-col"></div>
+    </div>
+  </div>
+
+  <div class="result-msg" id="result-msg">
+    Bravo ! Tous les brins sont correctement appariés. Les 2 brins restants sont des intrus — ils n'ont aucun complémentaire parmi les brins sens.
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:#eaf3de;border:1.5px solid #3B6D11;"></div>Paire correcte</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#fcebeb;border:1.5px solid #A32D2D;"></div>Paire incorrecte</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#e6f1fb;border:1.5px solid #185FA5;"></div>Brin sens sélectionné</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#e1f5ee;border:1.5px solid #0F6E56;"></div>Brin anti-sens sélectionné</div>
+  </div>
+</div>
+
+<script>
+const pairs = [
+  { id: 'A', sense: "5'-ATGCTAGCTA-3'", anti: "3'-TACGATCGAT-5'" },
+  { id: 'B', sense: "5'-GCTAGCTTAG-3'", anti: "3'-CGATCGAATC-5'" },
+  { id: 'C', sense: "5'-TTAGCGATCG-3'", anti: "3'-AATCGCTAGC-5'" },
+  { id: 'D', sense: "5'-CGATTACGAT-3'", anti: "3'-GCTAATGCTA-5'" },
+];
+const decoys = [
+  { id: 'X', anti: "3'-TTACGATCGA-5'" },
+  { id: 'Y', anti: "3'-GCATCGATCG-5'" },
+];
+
+let shuffledAnti = [];
+let selectedSense = null;
+let selectedAnti  = null;
+let matched = 0;
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function renderStrands() {
+  const sCol = document.getElementById('sense-col');
+  const aCol = document.getElementById('anti-col');
+  sCol.innerHTML = '';
+  aCol.innerHTML = '';
+
+  pairs.forEach(p => {
+    const btn = document.createElement('button');
+    btn.className = 'strand-btn';
+    btn.id = 'sense-' + p.id;
+    btn.dataset.id = p.id;
+    btn.textContent = p.sense;
+    btn.onclick = () => selectSense(p.id);
+    sCol.appendChild(btn);
+  });
+
+  shuffledAnti.forEach(a => {
+    const btn = document.createElement('button');
+    btn.className = 'strand-btn';
+    btn.id = 'anti-' + a.id;
+    btn.dataset.id = a.id;
+    btn.textContent = a.seq;
+    btn.onclick = () => selectAnti(a.id);
+    aCol.appendChild(btn);
+  });
+
+  updateSvgHeight();
+}
+
+function selectSense(id) {
+  const btn = document.getElementById('sense-' + id);
+  if (btn.classList.contains('correct') || btn.classList.contains('disabled')) return;
+  if (selectedSense === id) {
+    btn.classList.remove('selected-sense');
+    selectedSense = null;
+    return;
+  }
+  if (selectedSense) document.getElementById('sense-' + selectedSense).classList.remove('selected-sense');
+  selectedSense = id;
+  btn.classList.add('selected-sense');
+  if (selectedAnti) tryMatch();
+}
+
+function selectAnti(id) {
+  const btn = document.getElementById('anti-' + id);
+  if (btn.classList.contains('correct') || btn.classList.contains('disabled')) return;
+  if (selectedAnti === id) {
+    btn.classList.remove('selected-anti');
+    selectedAnti = null;
+    return;
+  }
+  if (selectedAnti) document.getElementById('anti-' + selectedAnti).classList.remove('selected-anti');
+  selectedAnti = id;
+  btn.classList.add('selected-anti');
+  if (selectedSense) tryMatch();
+}
+
+function tryMatch() {
+  const sBtn = document.getElementById('sense-' + selectedSense);
+  const aBtn = document.getElementById('anti-' + selectedAnti);
+
+  if (selectedSense === selectedAnti) {
+    sBtn.classList.remove('selected-sense');
+    sBtn.classList.add('correct');
+    aBtn.classList.remove('selected-anti');
+    aBtn.classList.add('correct');
+    matched++;
+    drawLine(selectedSense, selectedAnti);
+    selectedSense = null;
+    selectedAnti  = null;
+    updateScore();
+  } else {
+    sBtn.classList.add('wrong');
+    aBtn.classList.add('wrong');
+    setTimeout(() => {
+      sBtn.classList.remove('wrong', 'selected-sense');
+      aBtn.classList.remove('wrong', 'selected-anti');
+      selectedSense = null;
+      selectedAnti  = null;
+    }, 700);
+  }
+}
+
+function drawLine(senseId, antiId) {
+  const svg  = document.getElementById('connector-svg');
+  const sEl  = document.getElementById('sense-' + senseId);
+  const aEl  = document.getElementById('anti-'  + antiId);
+  const cont = svg.getBoundingClientRect();
+  const sR   = sEl.getBoundingClientRect();
+  const aR   = aEl.getBoundingClientRect();
+  const y1   = sR.top + sR.height / 2 - cont.top;
+  const y2   = aR.top + aR.height / 2 - cont.top;
+  const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  line.setAttribute('x1', 0);
+  line.setAttribute('y1', y1);
+  line.setAttribute('x2', 56);
+  line.setAttribute('y2', y2);
+  line.setAttribute('stroke', '#1D9E75');
+  line.setAttribute('stroke-width', '2');
+  line.setAttribute('stroke-dasharray', '5 3');
+  svg.appendChild(line);
+}
+
+function updateScore() {
+  document.getElementById('score-text').textContent = matched + ' / ' + pairs.length + ' paires trouvées';
+  if (matched === pairs.length) {
+    document.getElementById('result-msg').style.display = 'block';
+  }
+}
+
+function updateSvgHeight() {
+  const h = Math.max(
+    document.getElementById('sense-col').offsetHeight,
+    document.getElementById('anti-col').offsetHeight,
+    10
+  );
+  document.getElementById('connector-svg').setAttribute('height', h);
+}
+
+function resetAll() {
+  matched = 0;
+  selectedSense = null;
+  selectedAnti  = null;
+  shuffledAnti   = shuffle([...pairs.map(p => ({ id: p.id, seq: p.anti })), ...decoys.map(d => ({ id: d.id, seq: d.anti }))]);
+  document.getElementById('connector-svg').innerHTML = '';
+  document.getElementById('result-msg').style.display = 'none';
+  document.getElementById('score-text').textContent = '0 / 4 paires trouvées';
+  renderStrands();
+}
+
+shuffledAnti = shuffle([...pairs.map(p => ({ id: p.id, seq: p.anti })), ...decoys.map(d => ({ id: d.id, seq: d.anti }))]);
+renderStrands();
+window.addEventListener('resize', () => { updateSvgHeight(); });
+</script>
+</body>
+</html>
