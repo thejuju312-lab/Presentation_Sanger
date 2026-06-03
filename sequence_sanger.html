@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Exercice — Reconstituer la séquence Sanger</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: system-ui, sans-serif;
+    background: #f4f4f8;
+    min-height: 100vh;
+    padding: 2rem 1rem;
+    display: flex;
+    justify-content: center;
+  }
+  .card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 2rem;
+    max-width: 860px;
+    width: 100%;
+    border: 1px solid #e2e2e8;
+  }
+  h1 { font-size: 20px; font-weight: 600; color: #1a1a2e; margin-bottom: 6px; }
+  .subtitle { font-size: 13px; color: #6b6b80; margin-bottom: 1.5rem; line-height: 1.6; }
+
+  /* ── Fragments ── */
+  .section-label {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.07em;
+    text-transform: uppercase; color: #888780; margin-bottom: 10px;
+  }
+  #fragment-pool {
+    display: flex; flex-wrap: wrap; gap: 10px;
+    padding: 16px; border-radius: 10px;
+    background: #f8f8fc; border: 1px solid #e2e2e8;
+    min-height: 80px; margin-bottom: 1.5rem;
+  }
+  .fragment {
+    display: flex; align-items: center; gap: 0;
+    cursor: grab; user-select: none;
+    transition: transform 0.1s, opacity 0.2s;
+  }
+  .fragment:active { cursor: grabbing; transform: scale(1.04); }
+  .fragment.used { opacity: 0.3; pointer-events: none; }
+  .frag-body {
+    height: 28px; border-radius: 4px 0 0 4px;
+    background: #D3D1C7; border: 1px solid #B4B2A9;
+    border-right: none;
+    display: flex; align-items: center; padding: 0 8px;
+    font-family: 'Courier New', monospace; font-size: 12px;
+    font-weight: 600; color: #444441; letter-spacing: 0.05em;
+  }
+  .frag-end {
+    height: 28px; width: 28px; border-radius: 0 4px 4px 0;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Courier New', monospace; font-size: 13px;
+    font-weight: 700; flex-shrink: 0;
+  }
+
+  /* ── Drop zone ── */
+  #drop-zone {
+    min-height: 80px; padding: 12px;
+    border-radius: 10px; border: 2px dashed #c8c8d8;
+    background: #fafafd;
+    display: flex; flex-wrap: wrap; gap: 10px;
+    align-items: center; margin-bottom: 1rem;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  #drop-zone.drag-over { border-color: #6C3FC5; background: #f0ecff; }
+  #drop-zone .placeholder {
+    font-size: 13px; color: #b0b0c8; font-style: italic;
+  }
+
+  /* ── Answer input ── */
+  .answer-row {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 1rem;
+    flex-wrap: wrap;
+  }
+  .answer-label { font-size: 13px; color: #6b6b80; white-space: nowrap; }
+  #sequence-answer {
+    font-family: 'Courier New', monospace; font-size: 15px; font-weight: 600;
+    letter-spacing: 0.12em; color: #1a1a2e;
+    background: #f0ecff; border: 1.5px solid #AFA9EC;
+    border-radius: 8px; padding: 8px 14px; flex: 1;
+    min-width: 200px;
+  }
+
+  /* ── Buttons ── */
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 1.25rem; }
+  button {
+    font-size: 13px; padding: 8px 18px; border-radius: 8px;
+    border: 1px solid #c8c8d8; background: #fff;
+    cursor: pointer; color: #1a1a2e; transition: background 0.15s;
+  }
+  button:hover { background: #f0f0f6; }
+  .btn-check {
+    background: #6C3FC5; color: #fff; border-color: #6C3FC5; font-weight: 600;
+  }
+  .btn-check:hover { background: #534AB7; }
+
+  /* ── Result ── */
+  #result-msg {
+    font-size: 14px; font-weight: 500; padding: 10px 14px;
+    border-radius: 8px; display: none; margin-bottom: 1rem;
+  }
+  #result-msg.correct { background: #eaf3de; color: #27500A; border: 1px solid #3B6D11; }
+  #result-msg.wrong   { background: #fcebeb; color: #791F1F; border: 1px solid #A32D2D; }
+
+  /* ── Score ── */
+  .score-text { font-size: 13px; color: #6b6b80; margin-bottom: 1rem; }
+
+  /* ── Legend ── */
+  .legend {
+    display: flex; gap: 1.5rem; flex-wrap: wrap;
+    padding-top: 1rem; border-top: 1px solid #e8e8f0;
+  }
+  .legend-item { display: flex; align-items: center; gap: 7px; font-size: 12px; color: #6b6b80; }
+  .legend-dot { width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; }
+
+  /* ── Coleurs bases ── */
+  .base-A { background: #1D9E75; color: #E1F5EE; }
+  .base-T { background: #378ADD; color: #E6F1FB; }
+  .base-G { background: #BA7517; color: #FAEEDA; }
+  .base-C { background: #D4537E; color: #FBEAF0; }
+
+  /* ── Correct highlight ── */
+  .fragment.correct .frag-body { background: #9FE1CB; border-color: #1D9E75; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>Reconstituer la séquence d'ADN</h1>
+  <p class="subtitle">
+    Les fragments ci-dessous sont les produits d'un séquençage Sanger — ils sont mélangés et dans le désordre.<br>
+    <strong>Glisse-les</strong> dans la zone de dépôt dans le bon ordre (du plus court au plus long), puis vérifie ta réponse.<br>
+    Rappel&nbsp;: la couleur de l'extrémité indique la base terminale (A&nbsp;=&nbsp;vert, T&nbsp;=&nbsp;bleu, G&nbsp;=&nbsp;jaune, C&nbsp;=&nbsp;rose).
+  </p>
+
+  <div class="section-label">Fragments disponibles (dans le désordre)</div>
+  <div id="fragment-pool"></div>
+
+  <div class="section-label">Zone de reconstitution — dépose les fragments dans l'ordre</div>
+  <div id="drop-zone">
+    <span class="placeholder">Dépose les fragments ici, du plus court au plus long…</span>
+  </div>
+
+  <div class="answer-row">
+    <span class="answer-label">Séquence reconstituée&nbsp;:</span>
+    <div id="sequence-answer">–</div>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn-check" onclick="checkAnswer()">Vérifier</button>
+    <button onclick="resetExercice()">↺ Recommencer</button>
+    <button onclick="showHint()">Indice</button>
+  </div>
+
+  <div class="score-text" id="score-text"></div>
+  <div id="result-msg"></div>
+
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot base-A"></div>A – Adénine</div>
+    <div class="legend-item"><div class="legend-dot base-T"></div>T – Thymine</div>
+    <div class="legend-item"><div class="legend-dot base-G"></div>G – Guanine</div>
+    <div class="legend-item"><div class="legend-dot base-C"></div>C – Cytosine</div>
+  </div>
+</div>
+
+<script>
+// Séquence cible : T A C G A T C G A T
+// Chaque fragment = amorce commune + bases jusqu'à la base terminale
+// Les corps sont juste des barres, la dernière lettre = ddNTP
+const TARGET = ['T','A','C','G','A','T','C','G','A','T'];
+
+// Fragments : { id, length, terminalBase }
+// longueur = nombre de bases après l'amorce (1 à 10)
+const FRAGMENTS_DEF = TARGET.map((base, i) => ({
+  id: i,
+  length: i + 1,
+  terminalBase: base,
+}));
+
+const BASE_COLORS = {
+  A: { bg: '#1D9E75', text: '#E1F5EE' },
+  T: { bg: '#378ADD', text: '#E6F1FB' },
+  G: { bg: '#BA7517', text: '#FAEEDA' },
+  C: { bg: '#D4537E', text: '#FBEAF0' },
+};
+
+const MAX_BODY_WIDTH = 220;
+const MIN_BODY_WIDTH = 14;
+
+let shuffled = [];
+let dropped = [];
+let attempts = 0;
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function buildFragment(frag) {
+  const col = BASE_COLORS[frag.terminalBase];
+  const bodyW = MIN_BODY_WIDTH + Math.round(
+    (frag.length - 1) / (FRAGMENTS_DEF.length - 1) * (MAX_BODY_WIDTH - MIN_BODY_WIDTH)
+  );
+
+  const el = document.createElement('div');
+  el.className = 'fragment';
+  el.dataset.id = frag.id;
+  el.draggable = true;
+
+  const body = document.createElement('div');
+  body.className = 'frag-body';
+  body.style.width = bodyW + 'px';
+  body.textContent = '';
+
+  const end = document.createElement('div');
+  end.className = 'frag-end';
+  end.style.background = col.bg;
+  end.style.color = col.text;
+  end.textContent = frag.terminalBase;
+
+  el.appendChild(body);
+  el.appendChild(end);
+
+  el.addEventListener('dragstart', onDragStart);
+  el.addEventListener('click', onClickFragment);
+
+  return el;
+}
+
+function renderPool() {
+  const pool = document.getElementById('fragment-pool');
+  pool.innerHTML = '';
+  shuffled.forEach(frag => {
+    const el = buildFragment(frag);
+    if (dropped.find(d => d.id === frag.id)) el.classList.add('used');
+    pool.appendChild(el);
+  });
+}
+
+function renderDropZone() {
+  const zone = document.getElementById('drop-zone');
+  zone.innerHTML = '';
+  if (dropped.length === 0) {
+    zone.innerHTML = '<span class="placeholder">Dépose les fragments ici, du plus court au plus long…</span>';
+  } else {
+    dropped.forEach(frag => {
+      const el = buildFragment(frag);
+      el.style.cursor = 'pointer';
+      el.title = 'Cliquer pour retirer';
+      el.addEventListener('click', () => removeFromDrop(frag.id));
+      zone.appendChild(el);
+    });
+  }
+  updateSequenceDisplay();
+}
+
+function updateSequenceDisplay() {
+  const seq = dropped.map(f => f.terminalBase).join(' – ');
+  document.getElementById('sequence-answer').textContent = seq || '–';
+}
+
+// ── Drag & drop ──
+let draggingId = null;
+
+function onDragStart(e) {
+  draggingId = parseInt(e.currentTarget.dataset.id);
+  e.dataTransfer.effectAllowed = 'move';
+}
+
+const dropZone = document.getElementById('drop-zone');
+dropZone.addEventListener('dragover', e => {
+  e.preventDefault();
+  dropZone.classList.add('drag-over');
+});
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  if (draggingId === null) return;
+  const frag = FRAGMENTS_DEF.find(f => f.id === draggingId);
+  if (!dropped.find(d => d.id === frag.id)) {
+    dropped.push(frag);
+    renderPool();
+    renderDropZone();
+    hideResult();
+  }
+  draggingId = null;
+});
+
+// ── Click to add / remove ──
+function onClickFragment(e) {
+  const id = parseInt(e.currentTarget.dataset.id);
+  if (e.currentTarget.classList.contains('used')) return;
+  const frag = FRAGMENTS_DEF.find(f => f.id === id);
+  if (!dropped.find(d => d.id === id)) {
+    dropped.push(frag);
+    renderPool();
+    renderDropZone();
+    hideResult();
+  }
+}
+
+function removeFromDrop(id) {
+  dropped = dropped.filter(f => f.id !== id);
+  renderPool();
+  renderDropZone();
+  hideResult();
+}
+
+// ── Check ──
+function checkAnswer() {
+  const msg = document.getElementById('result-msg');
+  const scoreEl = document.getElementById('score-text');
+  attempts++;
+
+  if (dropped.length < FRAGMENTS_DEF.length) {
+    msg.style.display = 'block';
+    msg.className = 'wrong';
+    msg.textContent = `Il manque ${FRAGMENTS_DEF.length - dropped.length} fragment(s). Place tous les fragments dans l'ordre avant de vérifier.`;
+    return;
+  }
+
+  const correct = dropped.every((f, i) => f.id === i);
+  msg.style.display = 'block';
+
+  if (correct) {
+    msg.className = 'correct';
+    msg.textContent = `Bravo ! La séquence est correcte : 5'– ${TARGET.join(' – ')} –3'. Tu as réussi en ${attempts} tentative${attempts > 1 ? 's' : ''}.`;
+    scoreEl.textContent = `Score : réussi en ${attempts} tentative${attempts > 1 ? 's' : ''}.`;
+  } else {
+    // Find first error
+    let firstWrong = dropped.findIndex((f, i) => f.id !== i);
+    msg.className = 'wrong';
+    msg.textContent = `Pas tout à fait… La position ${firstWrong + 1} n'est pas correcte. Rappel : classe les fragments du plus court au plus long.`;
+    scoreEl.textContent = `Tentatives : ${attempts}`;
+  }
+}
+
+function hideResult() {
+  const msg = document.getElementById('result-msg');
+  msg.style.display = 'none';
+}
+
+function showHint() {
+  const msg = document.getElementById('result-msg');
+  msg.style.display = 'block';
+  msg.className = '';
+  msg.style.background = '#FFF3CD';
+  msg.style.color = '#7B4F00';
+  msg.style.border = '1px solid #F59E0B';
+  msg.textContent = `Indice : le fragment le plus court est terminé par un "${TARGET[0]}" et le plus long par un "${TARGET[TARGET.length - 1]}". Classe-les par taille croissante du corps gris.`;
+}
+
+function resetExercice() {
+  dropped = [];
+  attempts = 0;
+  shuffled = shuffle([...FRAGMENTS_DEF]);
+  document.getElementById('score-text').textContent = '';
+  hideResult();
+  renderPool();
+  renderDropZone();
+}
+
+// ── Init ──
+shuffled = shuffle([...FRAGMENTS_DEF]);
+renderPool();
+renderDropZone();
+</script>
+</body>
+</html>
