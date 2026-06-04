@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>De l'ADN à la Protéine</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: system-ui, sans-serif;
+    background: linear-gradient(135deg, #1E1030 0%, #2D1B5E 100%);
+    min-height: 100vh;
+    padding: 1.5rem 1rem;
+    display: flex; justify-content: center;
+  }
+  .card {
+    background: #fff; border-radius: 20px;
+    padding: 1.75rem; max-width: 900px; width: 100%;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  }
+  h1 { font-size: 21px; font-weight: 700; color: #1a1a2e; margin-bottom: 4px; }
+  .subtitle { font-size: 13px; color: #6b6b80; margin-bottom: 1.5rem; line-height: 1.5; }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 8px; margin-bottom: 1.5rem; flex-wrap: wrap; }
+  .tab {
+    padding: 8px 18px; border-radius: 99px; font-size: 13px; font-weight: 600;
+    border: 2px solid #D5CCF5; background: #fff; color: #6b6b80; cursor: pointer;
+    transition: all 0.15s;
+  }
+  .tab.active { background: #6C3FC5; border-color: #6C3FC5; color: #fff; }
+
+  /* Section */
+  .section { display: none; }
+  .section.active { display: block; }
+
+  /* Codon table */
+  .codon-table-wrap { overflow-x: auto; margin-bottom: 1.5rem; }
+  .codon-table {
+    border-collapse: collapse; font-size: 11px; width: 100%;
+    font-family: 'Courier New', monospace;
+  }
+  .codon-table th, .codon-table td {
+    border: 1px solid #ddd; padding: 4px 7px; text-align: center;
+  }
+  .codon-table th { background: #6C3FC5; color: #fff; font-size: 12px; }
+  .codon-table tr:nth-child(even) td { background: #f8f6ff; }
+  .stop { color: #D4537E; font-weight: 700; }
+  .met  { color: #1D9E75; font-weight: 700; }
+
+  /* Step blocks */
+  .step-block {
+    border-radius: 12px; padding: 1.25rem;
+    margin-bottom: 1.25rem; border: 1.5px solid;
+  }
+  .step-title {
+    font-size: 13px; font-weight: 700; letter-spacing: 0.06em;
+    text-transform: uppercase; margin-bottom: 10px;
+  }
+  .step-adn  { border-color: #D5CCF5; background: #F8F6FF; }
+  .step-adn .step-title  { color: #6C3FC5; }
+  .step-arn  { border-color: #B5D4F4; background: #EEF6FF; }
+  .step-arn .step-title  { color: #185FA5; }
+  .step-prot { border-color: #9FE1CB; background: #EDFBF5; }
+  .step-prot .step-title { color: #0F6E56; }
+  .step-mut  { border-color: #F4C0D1; background: #FFF0F5; }
+  .step-mut .step-title  { color: #993556; }
+
+  /* Sequence display */
+  .seq-display {
+    font-family: 'Courier New', monospace;
+    font-size: 15px; font-weight: 700;
+    letter-spacing: 0.12em; color: #1a1a2e;
+    background: rgba(0,0,0,0.04); border-radius: 8px;
+    padding: 10px 14px; margin-bottom: 10px;
+    word-break: break-all;
+  }
+  .seq-display .codon { display: inline-block; margin-right: 6px; }
+  .seq-display .codon.stop-codon { color: #D4537E; }
+  .seq-display .codon.truncated  { color: #ccc; text-decoration: line-through; }
+
+  /* Input area */
+  .input-row {
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    margin-bottom: 8px;
+  }
+  .input-label { font-size: 13px; color: #6b6b80; white-space: nowrap; }
+  .seq-input {
+    font-family: 'Courier New', monospace; font-size: 14px; font-weight: 600;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    background: #f8f6ff; border: 1.5px solid #AFA9EC;
+    border-radius: 8px; padding: 8px 12px; flex: 1; min-width: 180px;
+  }
+  .seq-input:focus { outline: none; border-color: #6C3FC5; }
+
+  /* Buttons */
+  .btn {
+    padding: 9px 18px; border-radius: 8px; border: none;
+    font-size: 13px; font-weight: 600; cursor: pointer; transition: opacity 0.15s;
+  }
+  .btn:hover { opacity: 0.85; }
+  .btn-purple { background: #6C3FC5; color: #fff; }
+  .btn-blue   { background: #185FA5; color: #fff; }
+  .btn-green  { background: #0F6E56; color: #fff; }
+  .btn-pink   { background: #993556; color: #fff; }
+  .btn-gray   { background: #eee; color: #444; }
+
+  /* Feedback */
+  .feedback {
+    border-radius: 8px; padding: 10px 14px; font-size: 13px;
+    line-height: 1.6; margin-top: 8px; display: none;
+  }
+  .feedback.ok  { background: #EAF3DE; border: 1px solid #3B6D11; color: #27500A; }
+  .feedback.err { background: #FCEBEB; border: 1px solid #A32D2D; color: #791F1F; }
+  .feedback.info{ background: #EEF6FF; border: 1px solid #185FA5; color: #0C3A7A; }
+
+  /* Protein chain */
+  .protein-chain {
+    display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px;
+  }
+  .aa-badge {
+    padding: 5px 10px; border-radius: 99px; font-size: 12px; font-weight: 600;
+    color: #fff; white-space: nowrap;
+  }
+  .aa-stop { background: #D4537E !important; }
+  .aa-met  { background: #1D9E75 !important; }
+
+  /* Progress bar */
+  .progress-wrap { background: #eee; border-radius: 99px; height: 6px; margin-bottom: 1rem; }
+  .progress-bar  { height: 6px; border-radius: 99px; background: linear-gradient(90deg, #6C3FC5, #EC4899); transition: width 0.3s; }
+
+  .hint { font-size: 12px; color: #888; margin-top: 6px; font-style: italic; }
+  .rule-box {
+    background: #FFF3CD; border: 1px solid #F59E0B; border-radius: 8px;
+    padding: 10px 14px; font-size: 12px; color: #7B4F00; margin-bottom: 12px; line-height: 1.6;
+  }
+  .score-line { font-size: 13px; color: #6b6b80; margin-bottom: 1rem; }
+  hr { border: none; border-top: 1px solid #e8e8f0; margin: 1.25rem 0; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>🧬 De l'ADN à la Protéine</h1>
+  <p class="subtitle">
+    Suis les étapes : ADN → ARN → codons → acides aminés → protéine.<br>
+    Puis découvre l'impact d'une mutation qui introduit un codon stop prématuré.
+  </p>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('rules')">📋 Règles & Tableau</button>
+    <button class="tab" onclick="switchTab('normal')">🧬 Séquence normale</button>
+    <button class="tab" onclick="switchTab('mutee')">⚠️ Séquence mutée</button>
+  </div>
+
+  <!-- ─── TAB: RÈGLES ─── -->
+  <div class="section active" id="tab-rules">
+
+    <div class="rule-box">
+      <strong>Rappel des règles :</strong><br>
+      1. <strong>ADN → ARN</strong> : remplace chaque base T par U (A→A, C→C, G→G, T→<strong>U</strong>)<br>
+      2. <strong>ARN → Codons</strong> : regroupe les bases 3 par 3 depuis le début<br>
+      3. <strong>Codon → Acide aminé</strong> : utilise le tableau ci-dessous<br>
+      4. <strong>Codon stop</strong> (UAA, UAG, UGA) : la protéine s'arrête là
+    </div>
+
+    <div class="step-title" style="color:#6C3FC5; font-size:14px; margin-bottom:10px;">Tableau des codons (ARN → Acide aminé)</div>
+    <div class="codon-table-wrap">
+      <table class="codon-table">
+        <thead>
+          <tr><th>Codon ARN</th><th>Acide aminé</th><th>Abrév.</th><th>Codon ARN</th><th>Acide aminé</th><th>Abrév.</th><th>Codon ARN</th><th>Acide aminé</th><th>Abrév.</th><th>Codon ARN</th><th>Acide aminé</th><th>Abrév.</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>UUU</td><td>Phénylalanine</td><td>Phe</td><td>UCU</td><td>Sérine</td><td>Ser</td><td>UAU</td><td>Tyrosine</td><td>Tyr</td><td>UGU</td><td>Cystéine</td><td>Cys</td></tr>
+          <tr><td>UUC</td><td>Phénylalanine</td><td>Phe</td><td>UCC</td><td>Sérine</td><td>Ser</td><td>UAC</td><td>Tyrosine</td><td>Tyr</td><td>UGC</td><td>Cystéine</td><td>Cys</td></tr>
+          <tr><td>UUA</td><td>Leucine</td><td>Leu</td><td>UCA</td><td>Sérine</td><td>Ser</td><td class="stop">UAA</td><td class="stop">STOP</td><td class="stop">—</td><td class="stop">UGA</td><td class="stop">STOP</td><td class="stop">—</td></tr>
+          <tr><td>UUG</td><td>Leucine</td><td>Leu</td><td>UCG</td><td>Sérine</td><td>Ser</td><td class="stop">UAG</td><td class="stop">STOP</td><td class="stop">—</td><td>UGG</td><td>Tryptophane</td><td>Trp</td></tr>
+          <tr><td>CUU</td><td>Leucine</td><td>Leu</td><td>CCU</td><td>Proline</td><td>Pro</td><td>CAU</td><td>Histidine</td><td>His</td><td>CGU</td><td>Arginine</td><td>Arg</td></tr>
+          <tr><td>CUC</td><td>Leucine</td><td>Leu</td><td>CCC</td><td>Proline</td><td>Pro</td><td>CAC</td><td>Histidine</td><td>His</td><td>CGC</td><td>Arginine</td><td>Arg</td></tr>
+          <tr><td>CUA</td><td>Leucine</td><td>Leu</td><td>CCA</td><td>Proline</td><td>Pro</td><td>CAA</td><td>Glutamine</td><td>Gln</td><td>CGA</td><td>Arginine</td><td>Arg</td></tr>
+          <tr><td>CUG</td><td>Leucine</td><td>Leu</td><td>CCG</td><td>Proline</td><td>Pro</td><td>CAG</td><td>Glutamine</td><td>Gln</td><td>CGG</td><td>Arginine</td><td>Arg</td></tr>
+          <tr><td>AUU</td><td>Isoleucine</td><td>Ile</td><td>ACU</td><td>Thréonine</td><td>Thr</td><td>AAU</td><td>Asparagine</td><td>Asn</td><td>AGU</td><td>Sérine</td><td>Ser</td></tr>
+          <tr><td>AUC</td><td>Isoleucine</td><td>Ile</td><td>ACC</td><td>Thréonine</td><td>Thr</td><td>AAC</td><td>Asparagine</td><td>Asn</td><td>AGC</td><td>Sérine</td><td>Ser</td></tr>
+          <tr><td>AUA</td><td>Isoleucine</td><td>Ile</td><td>ACA</td><td>Thréonine</td><td>Thr</td><td>AAA</td><td>Lysine</td><td>Lys</td><td>AGA</td><td>Arginine</td><td>Arg</td></tr>
+          <tr><td class="met">AUG</td><td class="met">Méthionine (START)</td><td class="met">Met</td><td>ACG</td><td>Thréonine</td><td>Thr</td><td>AAG</td><td>Lysine</td><td>Lys</td><td>AGG</td><td>Arginine</td><td>Arg</td></tr>
+          <tr><td>GUU</td><td>Valine</td><td>Val</td><td>GCU</td><td>Alanine</td><td>Ala</td><td>GAU</td><td>Acide aspartique</td><td>Asp</td><td>GGU</td><td>Glycine</td><td>Gly</td></tr>
+          <tr><td>GUC</td><td>Valine</td><td>Val</td><td>GCC</td><td>Alanine</td><td>Ala</td><td>GAC</td><td>Acide aspartique</td><td>Asp</td><td>GGC</td><td>Glycine</td><td>Gly</td></tr>
+          <tr><td>GUA</td><td>Valine</td><td>Val</td><td>GCA</td><td>Alanine</td><td>Ala</td><td>GAA</td><td>Acide glutamique</td><td>Glu</td><td>GGA</td><td>Glycine</td><td>Gly</td></tr>
+          <tr><td>GUG</td><td>Valine</td><td>Val</td><td>GCG</td><td>Alanine</td><td>Ala</td><td>GAG</td><td>Acide glutamique</td><td>Glu</td><td>GGG</td><td>Glycine</td><td>Gly</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="hint">💡 Les codons STOP (UAA, UAG, UGA) en rouge arrêtent la traduction. AUG en vert est le codon START (Méthionine).</p>
+  </div>
+
+  <!-- ─── TAB: SÉQUENCE NORMALE ─── -->
+  <div class="section" id="tab-normal">
+
+    <div class="score-line" id="score-normal">Étapes complétées : 0 / 3</div>
+    <div class="progress-wrap"><div class="progress-bar" id="prog-normal" style="width:0%"></div></div>
+
+    <!-- Séquence ADN -->
+    <div class="step-block step-adn">
+      <div class="step-title">① Séquence ADN (brin sens, 5'→3')</div>
+      <div class="seq-display">ATG · CCT · GAA · GCT · CAG</div>
+      <p class="hint">Il y a 5 codons de 3 bases chacun = 15 bases au total.</p>
+    </div>
+
+    <!-- Étape 1 : ADN → ARN -->
+    <div class="step-block step-arn">
+      <div class="step-title">② Transcription : ADN → ARN messager</div>
+      <p style="font-size:13px; color:#444; margin-bottom:10px;">
+        Remplace chaque <strong>T</strong> par un <strong>U</strong>. Les autres bases restent identiques.
+      </p>
+      <div class="input-row">
+        <span class="input-label">ARN :</span>
+        <input class="seq-input" id="input-arn" placeholder="ex: AUG CCU ..." maxlength="30">
+        <button class="btn btn-blue" onclick="checkARN()">Vérifier</button>
+      </div>
+      <div class="feedback" id="fb-arn"></div>
+    </div>
+
+    <!-- Étape 2 : Codons → AA -->
+    <div class="step-block step-prot" id="step-aa" style="opacity:0.4; pointer-events:none;">
+      <div class="step-title">③ Traduction : Codons → Acides aminés</div>
+      <p style="font-size:13px; color:#444; margin-bottom:10px;">
+        Utilise le tableau des codons pour trouver chaque acide aminé.<br>
+        <strong>ARN obtenu :</strong> <span id="arn-display" style="font-family:monospace; font-weight:700;"></span>
+      </p>
+      <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;" id="aa-inputs"></div>
+      <button class="btn btn-green" onclick="checkAA()">Vérifier les acides aminés</button>
+      <div class="feedback" id="fb-aa"></div>
+    </div>
+
+    <!-- Étape 3 : Protéine -->
+    <div class="step-block step-prot" id="step-prot" style="opacity:0.4; pointer-events:none;">
+      <div class="step-title">④ Protéine produite</div>
+      <p style="font-size:13px; color:#444; margin-bottom:10px;">La chaîne d'acides aminés forme une protéine fonctionnelle :</p>
+      <div class="protein-chain" id="protein-normal"></div>
+      <div class="feedback info" id="fb-prot" style="display:block; margin-top:12px;">
+        ✅ La protéine est <strong>complète et fonctionnelle</strong> — les 5 acides aminés sont produits correctement.
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ─── TAB: SÉQUENCE MUTÉE ─── -->
+  <div class="section" id="tab-mutee">
+
+    <div class="score-line" id="score-mutee">Étapes complétées : 0 / 3</div>
+    <div class="progress-wrap"><div class="progress-bar" id="prog-mutee" style="width:0%"></div></div>
+
+    <div class="rule-box" style="background:#FFF0F5; border-color:#D4537E; color:#7A1535;">
+      ⚠️ <strong>Une mutation a eu lieu !</strong> Le 4ème codon de l'ADN a été modifié : <strong>GCT → TAA</strong>.
+      Cette substitution va introduire un codon STOP prématuré dans l'ARN. Suis les étapes pour observer l'impact.
+    </div>
+
+    <!-- Séquence ADN mutée -->
+    <div class="step-block step-mut">
+      <div class="step-title">① Séquence ADN mutée (brin sens, 5'→3')</div>
+      <div class="seq-display">
+        <span class="codon">ATG</span> ·
+        <span class="codon">CCT</span> ·
+        <span class="codon">GAA</span> ·
+        <span class="codon" style="color:#D4537E; font-weight:900;">TAA</span> ·
+        <span class="codon" style="color:#bbb;">CAG</span>
+      </div>
+      <p class="hint">Le 4ème codon est muté (en rouge). Le 5ème codon (grisé) ne sera plus traduit.</p>
+    </div>
+
+    <!-- Étape 1 : ADN muté → ARN -->
+    <div class="step-block step-arn">
+      <div class="step-title">② Transcription : ADN muté → ARN messager</div>
+      <p style="font-size:13px; color:#444; margin-bottom:10px;">
+        Même règle : remplace chaque <strong>T</strong> par un <strong>U</strong>.
+      </p>
+      <div class="input-row">
+        <span class="input-label">ARN :</span>
+        <input class="seq-input" id="input-arn-mut" placeholder="ex: AUG CCU ..." maxlength="30">
+        <button class="btn btn-pink" onclick="checkARNMut()">Vérifier</button>
+      </div>
+      <div class="feedback" id="fb-arn-mut"></div>
+    </div>
+
+    <!-- Étape 2 : Codons mutés → AA -->
+    <div class="step-block step-mut" id="step-aa-mut" style="opacity:0.4; pointer-events:none;">
+      <div class="step-title">③ Traduction : Codons → Acides aminés (avec STOP prématuré)</div>
+      <p style="font-size:13px; color:#444; margin-bottom:10px;">
+        Traduis les codons un par un. Que se passe-t-il au 4ème ?<br>
+        <strong>ARN muté :</strong> <span id="arn-mut-display" style="font-family:monospace; font-weight:700;"></span>
+      </p>
+      <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;" id="aa-mut-inputs"></div>
+      <button class="btn btn-pink" onclick="checkAAMut()">Vérifier</button>
+      <div class="feedback" id="fb-aa-mut"></div>
+    </div>
+
+    <!-- Résultat : protéine tronquée -->
+    <div class="step-block step-mut" id="step-prot-mut" style="opacity:0.4; pointer-events:none;">
+      <div class="step-title">④ Protéine tronquée</div>
+      <p style="font-size:13px; color:#444; margin-bottom:10px;">Comparaison des deux protéines :</p>
+      <p style="font-size:12px; color:#6b6b80; margin-bottom:6px;">🟢 Protéine normale (5 acides aminés) :</p>
+      <div class="protein-chain" id="protein-normal-ref"></div>
+      <p style="font-size:12px; color:#993556; margin-top:12px; margin-bottom:6px;">🔴 Protéine mutée — arrêt au codon 4 (3 acides aminés seulement) :</p>
+      <div class="protein-chain" id="protein-mutee"></div>
+      <div class="feedback" style="display:block; background:#FFF0F5; border:1px solid #D4537E; color:#7A1535; margin-top:12px;" id="fb-prot-mut">
+        ❌ La protéine est <strong>tronquée</strong> : le codon STOP prématuré (UAA) interrompt la traduction au 4ème codon.
+        La protéine produite ne fait que 3 acides aminés au lieu de 5 — elle est non fonctionnelle.
+        C'est exactement ce type de mutation qui peut provoquer des maladies génétiques graves.
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+// ─── DATA ───
+const CODON_TABLE = {
+  UUU:"Phe",UUC:"Phe",UUA:"Leu",UUG:"Leu",
+  UCU:"Ser",UCC:"Ser",UCA:"Ser",UCG:"Ser",
+  UAU:"Tyr",UAC:"Tyr",UAA:"STOP",UAG:"STOP",
+  UGU:"Cys",UGC:"Cys",UGA:"STOP",UGG:"Trp",
+  CUU:"Leu",CUC:"Leu",CUA:"Leu",CUG:"Leu",
+  CCU:"Pro",CCC:"Pro",CCA:"Pro",CCG:"Pro",
+  CAU:"His",CAC:"His",CAA:"Gln",CAG:"Gln",
+  CGU:"Arg",CGC:"Arg",CGA:"Arg",CGG:"Arg",
+  AUU:"Ile",AUC:"Ile",AUA:"Ile",AUG:"Met",
+  ACU:"Thr",ACC:"Thr",ACA:"Thr",ACG:"Thr",
+  AAU:"Asn",AAC:"Asn",AAA:"Lys",AAG:"Lys",
+  AGU:"Ser",AGC:"Ser",AGA:"Arg",AGG:"Arg",
+  GUU:"Val",GUC:"Val",GUA:"Val",GUG:"Val",
+  GCU:"Ala",GCC:"Ala",GCA:"Ala",GCG:"Ala",
+  GAU:"Asp",GAC:"Asp",GAA:"Glu",GAG:"Glu",
+  GGU:"Gly",GGC:"Gly",GGA:"Gly",GGG:"Gly"
+};
+
+const AA_COLORS = {
+  Met:"#1D9E75",Phe:"#6C3FC5",Leu:"#8B5CF6",Ser:"#06B6D4",
+  Tyr:"#0891B2",Cys:"#0E7490",Trp:"#1D4ED8",Pro:"#7C3AED",
+  His:"#B45309",Gln:"#D97706",Arg:"#DC2626",Ile:"#059669",
+  Thr:"#0D9488",Asn:"#0284C7",Lys:"#2563EB",Val:"#4F46E5",
+  Ala:"#7C3AED",Asp:"#BE185D",Glu:"#9D174D",Gly:"#374151",
+  STOP:"#D4537E"
+};
+
+const DNA_NORMAL = "ATGCCTGAAGCTCAG";
+const DNA_MUTEE  = "ATGCCTGAATAACAG";
+
+const ARN_NORMAL = "AUGCCUGAAGCUCAG";
+const ARN_MUTEE  = "AUGCCUGAAUAACAG";
+
+const CODONS_NORMAL = ["AUG","CCU","GAA","GCU","CAG"];
+const CODONS_MUTEE  = ["AUG","CCU","GAA","UAA","CAG"];
+const AA_NORMAL = CODONS_NORMAL.map(c => CODON_TABLE[c]);
+const AA_MUTEE  = CODONS_MUTEE.map(c => CODON_TABLE[c]);
+
+// scores
+let stepsNormal = 0;
+let stepsMutee  = 0;
+
+// ─── TABS ───
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  event.target.classList.add('active');
+  if (tab === 'normal') buildAAInputs();
+  if (tab === 'mutee')  buildAAMutInputs();
+}
+
+// ─── HELPERS ───
+function normalize(s) { return s.replace(/[\s·\-]/g,'').toUpperCase(); }
+function showFb(id, msg, type) {
+  const el = document.getElementById(id);
+  el.style.display = 'block';
+  el.className = 'feedback ' + type;
+  el.innerHTML = msg;
+}
+function updateScore(which, n) {
+  if (which === 'normal') {
+    stepsNormal = Math.max(stepsNormal, n);
+    document.getElementById('score-normal').textContent = `Étapes complétées : ${stepsNormal} / 3`;
+    document.getElementById('prog-normal').style.width = (stepsNormal / 3 * 100) + '%';
+  } else {
+    stepsMutee = Math.max(stepsMutee, n);
+    document.getElementById('score-mutee').textContent = `Étapes complétées : ${stepsMutee} / 3`;
+    document.getElementById('prog-mutee').style.width  = (stepsMutee / 3 * 100) + '%';
+  }
+}
+function unlock(id) {
+  const el = document.getElementById(id);
+  el.style.opacity = '1';
+  el.style.pointerEvents = 'auto';
+}
+function makeBadge(aa) {
+  const span = document.createElement('span');
+  span.className = 'aa-badge';
+  span.style.background = AA_COLORS[aa] || '#888';
+  span.textContent = aa;
+  return span;
+}
+
+// ─── NORMAL: Étape 1 ARN ───
+function checkARN() {
+  const val = normalize(document.getElementById('input-arn').value);
+  const expected = normalize(ARN_NORMAL);
+  if (val === expected) {
+    showFb('fb-arn','✅ Parfait ! <strong>AUG·CCU·GAA·GCU·CAG</strong> — tous les T sont bien remplacés par U.','ok');
+    document.getElementById('arn-display').textContent = 'AUG · CCU · GAA · GCU · CAG';
+    unlock('step-aa');
+    buildAAInputs();
+    updateScore('normal', 1);
+  } else {
+    showFb('fb-arn','❌ Pas tout à fait. Rappel : seuls les <strong>T</strong> deviennent des <strong>U</strong>. Relis chaque base une par une.','err');
+  }
+}
+
+// ─── NORMAL: Étape 2 AA inputs ───
+function buildAAInputs() {
+  const container = document.getElementById('aa-inputs');
+  if (container.children.length > 0) return;
+  CODONS_NORMAL.forEach((codon, i) => {
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:4px;';
+    const label = document.createElement('div');
+    label.style.cssText = 'font-family:monospace;font-size:13px;font-weight:700;color:#185FA5;';
+    label.textContent = codon;
+    const inp = document.createElement('input');
+    inp.type = 'text'; inp.id = 'aa-inp-' + i;
+    inp.placeholder = '???';
+    inp.style.cssText = 'width:70px;text-align:center;font-family:monospace;font-size:13px;font-weight:700;padding:6px 4px;border:1.5px solid #AFA9EC;border-radius:6px;background:#f8f6ff;';
+    inp.maxLength = 4;
+    wrap.appendChild(label); wrap.appendChild(inp);
+    container.appendChild(wrap);
+  });
+}
+
+function checkAA() {
+  let ok = true;
+  const results = [];
+  CODONS_NORMAL.forEach((codon, i) => {
+    const inp = document.getElementById('aa-inp-' + i);
+    const val = inp.value.trim();
+    const expected = AA_NORMAL[i];
+    if (val.toLowerCase() === expected.toLowerCase()) {
+      inp.style.borderColor = '#1D9E75'; inp.style.background = '#EAF3DE';
+      results.push(expected);
+    } else {
+      inp.style.borderColor = '#D4537E'; inp.style.background = '#FCEBEB';
+      ok = false;
+    }
+  });
+  if (ok) {
+    showFb('fb-aa','✅ Tous les acides aminés sont corrects ! La protéine peut être assemblée.','ok');
+    buildProtein('protein-normal', AA_NORMAL);
+    unlock('step-prot');
+    updateScore('normal', 3);
+  } else {
+    showFb('fb-aa','❌ Certaines cases sont incorrectes (en rouge). Consulte le tableau des codons et réessaie.','err');
+    updateScore('normal', 2);
+  }
+}
+
+function buildProtein(containerId, aaList) {
+  const c = document.getElementById(containerId);
+  c.innerHTML = '';
+  aaList.forEach(aa => c.appendChild(makeBadge(aa)));
+}
+
+// ─── MUTÉE: Étape 1 ARN ───
+function checkARNMut() {
+  const val = normalize(document.getElementById('input-arn-mut').value);
+  const expected = normalize(ARN_MUTEE);
+  if (val === expected) {
+    showFb('fb-arn-mut','✅ Correct ! <strong>AUG·CCU·GAA·UAA·CAG</strong> — le 4ème codon est bien <strong style="color:#D4537E">UAA</strong> (STOP !).','ok');
+    document.getElementById('arn-mut-display').textContent = 'AUG · CCU · GAA · UAA · CAG';
+    unlock('step-aa-mut');
+    buildAAMutInputs();
+    updateScore('mutee', 1);
+  } else {
+    showFb('fb-arn-mut','❌ Vérifie bien chaque base. N\'oublie pas que TAA devient UAA dans l\'ARN.','err');
+  }
+}
+
+// ─── MUTÉE: Étape 2 AA inputs ───
+function buildAAMutInputs() {
+  const container = document.getElementById('aa-mut-inputs');
+  if (container.children.length > 0) return;
+  CODONS_MUTEE.forEach((codon, i) => {
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:4px;';
+    const label = document.createElement('div');
+    label.style.cssText = `font-family:monospace;font-size:13px;font-weight:700;color:${i===3?'#D4537E':'#185FA5'};`;
+    label.textContent = codon;
+    const inp = document.createElement('input');
+    inp.type = 'text'; inp.id = 'aa-mut-inp-' + i;
+    inp.placeholder = i === 3 ? 'STOP ?' : '???';
+    inp.style.cssText = `width:70px;text-align:center;font-family:monospace;font-size:13px;font-weight:700;padding:6px 4px;border:1.5px solid ${i===3?'#D4537E':'#AFA9EC'};border-radius:6px;background:${i===3?'#FFF0F5':'#f8f6ff'};`;
+    inp.maxLength = 4;
+    if (i === 4) { inp.value = '—'; inp.disabled = true; inp.style.opacity = '0.4'; }
+    wrap.appendChild(label); wrap.appendChild(inp);
+    container.appendChild(wrap);
+  });
+}
+
+function checkAAMut() {
+  let ok = true;
+  CODONS_MUTEE.forEach((codon, i) => {
+    if (i === 4) return;
+    const inp = document.getElementById('aa-mut-inp-' + i);
+    const val = inp.value.trim();
+    const expected = AA_MUTEE[i];
+    if (val.toLowerCase() === expected.toLowerCase() ||
+        (expected === 'STOP' && val.toLowerCase() === 'stop')) {
+      inp.style.borderColor = '#1D9E75'; inp.style.background = '#EAF3DE';
+    } else {
+      inp.style.borderColor = '#D4537E'; inp.style.background = '#FCEBEB';
+      ok = false;
+    }
+  });
+  if (ok) {
+    showFb('fb-aa-mut','✅ Correct ! Le codon UAA (position 4) est bien un codon STOP — la traduction s\'arrête ici.','ok');
+    buildProtein('protein-normal-ref', AA_NORMAL);
+    buildProteinMut();
+    unlock('step-prot-mut');
+    updateScore('mutee', 3);
+  } else {
+    showFb('fb-aa-mut','❌ Certaines cases sont incorrectes. Pour le 4ème codon, cherche UAA dans le tableau…','err');
+    updateScore('mutee', 2);
+  }
+}
+
+function buildProteinMut() {
+  const c = document.getElementById('protein-mutee');
+  c.innerHTML = '';
+  // Only first 3 AAs (before STOP)
+  AA_MUTEE.slice(0, 3).forEach(aa => c.appendChild(makeBadge(aa)));
+  const stop = document.createElement('span');
+  stop.className = 'aa-badge aa-stop';
+  stop.textContent = '⛔ STOP';
+  c.appendChild(stop);
+}
+</script>
+</body>
+</html>
