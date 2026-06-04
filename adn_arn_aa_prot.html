@@ -249,11 +249,6 @@
     <div class="score-line" id="score-mutee">Étapes complétées : 0 / 3</div>
     <div class="progress-wrap"><div class="progress-bar" id="prog-mutee" style="width:0%"></div></div>
 
-    <div class="rule-box" style="background:#FFF0F5; border-color:#D4537E; color:#7A1535;">
-      ⚠️ <strong>Une mutation a eu lieu !</strong> Le 4ème codon de l'ADN a été modifié : <strong>GCT → TAA</strong>.
-      Cette substitution va introduire un codon STOP prématuré dans l'ARN. Suis les étapes pour observer l'impact.
-    </div>
-
     <!-- Séquence ADN mutée -->
     <div class="step-block step-mut">
       <div class="step-title">① Séquence ADN mutée (brin sens, 5'→3')</div>
@@ -261,10 +256,9 @@
         <span class="codon">ATG</span> ·
         <span class="codon">CCT</span> ·
         <span class="codon">GAA</span> ·
-        <span class="codon" style="color:#D4537E; font-weight:900;">TAA</span> ·
-        <span class="codon" style="color:#bbb;">CAG</span>
+        <span class="codon">TAA</span> ·
+        <span class="codon">CAG</span>
       </div>
-      <p class="hint">Le 4ème codon est muté (en rouge). Le 5ème codon (grisé) ne sera plus traduit.</p>
     </div>
 
     <!-- Étape 1 : ADN muté → ARN -->
@@ -285,7 +279,7 @@
     <div class="step-block step-mut" id="step-aa-mut" style="opacity:0.4; pointer-events:none;">
       <div class="step-title">③ Traduction : Codons → Acides aminés (avec STOP prématuré)</div>
       <p style="font-size:13px; color:#444; margin-bottom:10px;">
-        Traduis les codons un par un. Que se passe-t-il au 4ème ?<br>
+        Traduis les codons un par un.<br>
         <strong>ARN muté :</strong> <span id="arn-mut-display" style="font-family:monospace; font-weight:700;"></span>
       </p>
       <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;" id="aa-mut-inputs"></div>
@@ -302,9 +296,9 @@
       <p style="font-size:12px; color:#993556; margin-top:12px; margin-bottom:6px;">🔴 Protéine mutée — arrêt au codon 4 (3 acides aminés seulement) :</p>
       <div class="protein-chain" id="protein-mutee"></div>
       <div class="feedback" style="display:block; background:#FFF0F5; border:1px solid #D4537E; color:#7A1535; margin-top:12px;" id="fb-prot-mut">
-        ❌ La protéine est <strong>tronquée</strong> : le codon STOP prématuré (UAA) interrompt la traduction au 4ème codon.
+        ❌ La protéine est <strong>tronquée</strong> : le codon STOP prématuré (UAA) interrompt l'ajout d'un acide aminé sur la protéine.
         La protéine produite ne fait que 3 acides aminés au lieu de 5 — elle est non fonctionnelle.
-        C'est exactement ce type de mutation qui peut provoquer des maladies génétiques graves.
+        C'est exactement ce type de mutation qui peut provoquer des maladies génétiques.
       </div>
     </div>
 
