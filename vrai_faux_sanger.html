@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vrai ou Faux — Séquençage Sanger</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: system-ui, sans-serif;
+    background: linear-gradient(135deg, #1E1030 0%, #2D1B5E 100%);
+    min-height: 100vh;
+    padding: 2rem 1rem;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  .card {
+    background: #fff;
+    border-radius: 20px;
+    padding: 2rem;
+    max-width: 680px;
+    width: 100%;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  }
+  h1 { font-size: 22px; font-weight: 700; color: #1a1a2e; margin-bottom: 4px; }
+  .subtitle { font-size: 13px; color: #6b6b80; margin-bottom: 1.5rem; }
+
+  .progress-bar-wrap { background: #eee; border-radius: 99px; height: 8px; margin-bottom: 6px; }
+  .progress-bar {
+    height: 8px; border-radius: 99px;
+    background: linear-gradient(90deg, #6C3FC5, #EC4899);
+    transition: width 0.4s ease;
+  }
+  .progress-label { font-size: 12px; color: #888780; margin-bottom: 1.5rem; text-align: right; }
+
+  .q-card {
+    border-radius: 14px; padding: 1.5rem;
+    background: #F8F6FF; border: 1.5px solid #D5CCF5;
+    margin-bottom: 1.25rem;
+    min-height: 110px;
+    display: flex; flex-direction: column; justify-content: center;
+  }
+  .q-number { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #8B5CF6; margin-bottom: 8px; }
+  .q-text { font-size: 17px; font-weight: 500; color: #1a1a2e; line-height: 1.5; }
+
+  .btn-row { display: flex; gap: 12px; margin-bottom: 1.25rem; }
+  .btn-tf {
+    flex: 1; padding: 14px; border-radius: 12px; border: 2px solid;
+    font-size: 16px; font-weight: 700; cursor: pointer;
+    transition: transform 0.1s, background 0.15s;
+  }
+  .btn-tf:hover { transform: scale(1.03); }
+  .btn-vrai { border-color: #1D9E75; color: #1D9E75; background: #fff; }
+  .btn-vrai:hover { background: #E1F5EE; }
+  .btn-faux { border-color: #D4537E; color: #D4537E; background: #fff; }
+  .btn-faux:hover { background: #FBEAF0; }
+  .btn-tf:disabled { opacity: 0.5; cursor: default; transform: none; }
+  .btn-tf.selected-correct { color: #fff !important; background: #1D9E75 !important; border-color: #1D9E75 !important; }
+  .btn-tf.selected-wrong   { color: #fff !important; background: #D4537E !important; border-color: #D4537E !important; }
+
+  #feedback {
+    border-radius: 10px; padding: 12px 16px;
+    font-size: 13px; line-height: 1.6;
+    display: none; margin-bottom: 1.25rem;
+  }
+  #feedback.correct { background: #EAF3DE; border: 1px solid #3B6D11; color: #27500A; }
+  #feedback.wrong   { background: #FCEBEB; border: 1px solid #A32D2D; color: #791F1F; }
+  #feedback .fb-title { font-weight: 700; font-size: 15px; margin-bottom: 4px; }
+  #feedback .fun-fact { margin-top: 8px; font-style: italic; color: #555; border-top: 1px solid rgba(0,0,0,0.08); padding-top: 8px; }
+
+  #btn-next {
+    width: 100%; padding: 13px; border-radius: 12px;
+    background: linear-gradient(90deg, #6C3FC5, #8B5CF6);
+    color: #fff; font-size: 15px; font-weight: 600;
+    border: none; cursor: pointer; display: none;
+    transition: opacity 0.2s;
+  }
+  #btn-next:hover { opacity: 0.9; }
+
+  #score-screen { display: none; text-align: center; }
+  .score-circle {
+    width: 120px; height: 120px; border-radius: 50%;
+    background: linear-gradient(135deg, #6C3FC5, #EC4899);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    margin: 0 auto 1.25rem;
+    box-shadow: 0 8px 24px rgba(108,63,197,0.35);
+  }
+  .score-num { font-size: 36px; font-weight: 800; color: #fff; }
+  .score-den { font-size: 14px; color: rgba(255,255,255,0.8); }
+  .score-msg { font-size: 18px; font-weight: 600; color: #1a1a2e; margin-bottom: 8px; }
+  .score-sub { font-size: 13px; color: #6b6b80; margin-bottom: 1.5rem; line-height: 1.6; }
+  .btn-restart {
+    padding: 12px 32px; border-radius: 12px;
+    background: linear-gradient(90deg, #6C3FC5, #8B5CF6);
+    color: #fff; font-size: 15px; font-weight: 600;
+    border: none; cursor: pointer;
+  }
+  .btn-restart:hover { opacity: 0.9; }
+</style>
+</head>
+<body>
+<div class="card">
+
+  <div id="quiz-screen">
+    <h1>🧬 Vrai ou Faux ?</h1>
+    <p class="subtitle">Le séquençage Sanger — Histoire et découvertes</p>
+
+    <div class="progress-bar-wrap">
+      <div class="progress-bar" id="progress-bar" style="width:0%"></div>
+    </div>
+    <div class="progress-label" id="progress-label">Question 1 / 10</div>
+
+    <div class="q-card">
+      <div class="q-number" id="q-number">Question 1</div>
+      <div class="q-text" id="q-text">…</div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn-tf btn-vrai" id="btn-vrai" onclick="answer(true)">✅ VRAI</button>
+      <button class="btn-tf btn-faux" id="btn-faux" onclick="answer(false)">❌ FAUX</button>
+    </div>
+
+    <div id="feedback">
+      <div class="fb-title" id="fb-title"></div>
+      <div id="fb-expl"></div>
+      <div class="fun-fact" id="fb-fun"></div>
+    </div>
+
+    <button id="btn-next" onclick="nextQuestion()">Question suivante →</button>
+  </div>
+
+  <div id="score-screen">
+    <div class="score-circle">
+      <div class="score-num" id="final-score">0</div>
+      <div class="score-den" id="final-den">/ 10</div>
+    </div>
+    <div class="score-msg" id="score-msg"></div>
+    <div class="score-sub" id="score-sub"></div>
+    <button class="btn-restart" onclick="restart()">↺ Recommencer</button>
+  </div>
+
+</div>
+
+<script>
+const ALL_QUESTIONS = [
+  {
+    text: "Frederick Sanger a inventé le séquençage de l'ADN dans les années 1970.",
+    answer: true,
+    expl: "Vrai ! Frederick Sanger a mis au point sa méthode en 1977. Elle porte son nom depuis.",
+    fun: "🏅 Fun fact : Sanger a reçu deux Prix Nobel de chimie — en 1958 et en 1980. Il est l'un des quatre seuls scientifiques à avoir accompli cet exploit !"
+  },
+  {
+    text: "Le projet Génome Humain a duré environ 6 mois.",
+    answer: false,
+    expl: "Faux ! Le projet a démarré en 1989 et la séquence a été publiée en 2001, soit plus de 10 ans de travail.",
+    fun: "⏳ Fun fact : ce projet mobilisait des centaines de laboratoires dans 6 pays différents à travers le monde."
+  },
+  {
+    text: "Séquencer le premier génome humain a coûté environ 1 milliard de dollars.",
+    answer: true,
+    expl: "Vrai ! C'était un projet colossal en termes de moyens financiers et humains.",
+    fun: "💸 Fun fact : aujourd'hui, grâce aux nouvelles technologies, séquencer un génome humain complet coûte quelques centaines d'euros et prend quelques heures seulement !"
+  },
+  {
+    text: "L'ADN est visible à l'œil nu sans aucun instrument.",
+    answer: false,
+    expl: "Faux ! L'ADN est une molécule microscopique, invisible à l'œil nu. Il faut des techniques spécialisées pour le lire.",
+    fun: "🔬 Fun fact : pourtant, si on extrait l'ADN de millions de cellules et qu'on le concentre, on peut parfois voir un filament blanchâtre à l'œil nu !"
+  },
+  {
+    text: "Le séquençage de l'ADN peut être utilisé en médecine légale pour identifier une personne.",
+    answer: true,
+    expl: "Vrai ! L'empreinte génétique est utilisée dans les enquêtes criminelles depuis les années 1980.",
+    fun: "🕵️ Fun fact : la première utilisation de l'ADN dans une affaire criminelle remonte à 1986 en Angleterre — elle a permis d'innocenter un suspect et de confondre le vrai coupable !"
+  },
+  {
+    text: "Le séquençage Sanger est aujourd'hui complètement abandonné dans les laboratoires.",
+    answer: false,
+    expl: "Faux ! Il est toujours utilisé en routine dans les laboratoires pour vérifier de petites séquences, comme ici à l'hôpital.",
+    fun: "🏥 Fun fact : à l'hôpital Robert Debré, le Sanger est utilisé chaque jour pour confirmer des diagnostics génétiques chez des patients."
+  },
+  {
+    text: "La leucémie est un cancer qui prend naissance dans le sang et la moelle osseuse.",
+    answer: true,
+    expl: "Vrai ! La moelle osseuse fabrique nos cellules sanguines. Quand ce processus déraille, des cellules anormales envahissent le sang.",
+    fun: "🩸 Fun fact : la leucémie est l'un des cancers les plus fréquents chez l'enfant, mais aussi l'un des mieux traités grâce aux avancées de la génétique moléculaire."
+  },
+  {
+    text: "Grâce au séquençage, on peut surveiller si une leucémie revient même avant l'apparition des symptômes.",
+    answer: true,
+    expl: "Vrai ! C'est ce qu'on appelle la MRD (Maladie Résiduelle Minime) : on détecte des cellules cancéreuses en très faible quantité, invisibles cliniquement.",
+    fun: "📡 Fun fact : c'est comme chercher une aiguille dans une botte de foin — on peut détecter 1 cellule leucémique parmi 100 000 cellules normales !"
+  },
+  {
+    text: "Frederick Sanger a reçu un seul Prix Nobel pour ses travaux sur le séquençage.",
+    answer: false,
+    expl: "Faux ! Sanger a reçu deux Prix Nobel : le premier en 1958 pour ses travaux sur les protéines, le second en 1980 pour le séquençage de l'ADN.",
+    fun: "🎖️ Fun fact : à ce jour, seulement 4 personnes dans l'histoire ont reçu deux Prix Nobel. Sanger était tellement modeste qu'il a refusé d'être fait chevalier !"
+  },
+  {
+    text: "Le séquençage de l'ADN permet uniquement d'étudier les humains.",
+    answer: false,
+    expl: "Faux ! On peut séquencer l'ADN de n'importe quel être vivant : plantes, bactéries, champignons, animaux, virus…",
+    fun: "🦣 Fun fact : des scientifiques ont réussi à séquencer l'ADN d'un mammouth laineux mort il y a plus de 40 000 ans, retrouvé congelé dans le permafrost sibérien !"
+  },
+];
+
+let questions = [];
+let current = 0;
+let score = 0;
+let answered = false;
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function loadQuestion() {
+  const q = questions[current];
+  document.getElementById('q-number').textContent = `Question ${current + 1}`;
+  document.getElementById('q-text').textContent = q.text;
+  document.getElementById('progress-label').textContent = `Question ${current + 1} / ${questions.length}`;
+  document.getElementById('progress-bar').style.width = ((current / questions.length) * 100) + '%';
+  document.getElementById('feedback').style.display = 'none';
+  document.getElementById('btn-next').style.display = 'none';
+  document.getElementById('btn-vrai').disabled = false;
+  document.getElementById('btn-faux').disabled = false;
+  document.getElementById('btn-vrai').className = 'btn-tf btn-vrai';
+  document.getElementById('btn-faux').className = 'btn-tf btn-faux';
+  answered = false;
+}
+
+function answer(userAnswer) {
+  if (answered) return;
+  answered = true;
+  const q = questions[current];
+  const correct = userAnswer === q.answer;
+  if (correct) score++;
+
+  const btnVrai = document.getElementById('btn-vrai');
+  const btnFaux = document.getElementById('btn-faux');
+  btnVrai.disabled = true;
+  btnFaux.disabled = true;
+
+  if (userAnswer === true) {
+    btnVrai.classList.add(correct ? 'selected-correct' : 'selected-wrong');
+  } else {
+    btnFaux.classList.add(correct ? 'selected-correct' : 'selected-wrong');
+  }
+
+  const fb = document.getElementById('feedback');
+  fb.style.display = 'block';
+  fb.className = correct ? 'correct' : 'wrong';
+  document.getElementById('fb-title').textContent = correct ? '✅ Bonne réponse !' : '❌ Pas tout à fait…';
+  document.getElementById('fb-expl').textContent = q.expl;
+  document.getElementById('fb-fun').textContent = q.fun;
+
+  document.getElementById('btn-next').style.display = 'block';
+  document.getElementById('btn-next').textContent =
+    current < questions.length - 1 ? 'Question suivante →' : 'Voir mon score →';
+}
+
+function nextQuestion() {
+  current++;
+  if (current >= questions.length) showScore();
+  else loadQuestion();
+}
+
+function showScore() {
+  document.getElementById('quiz-screen').style.display = 'none';
+  document.getElementById('score-screen').style.display = 'block';
+  document.getElementById('final-score').textContent = score;
+  document.getElementById('final-den').textContent = '/ ' + questions.length;
+  document.getElementById('progress-bar').style.width = '100%';
+
+  const pct = score / questions.length;
+  let msg, sub;
+  if (pct === 1)       { msg = '🏆 Parfait !';    sub = 'Impressionnant ! Tu connais le séquençage Sanger comme Frederick lui-même !'; }
+  else if (pct >= 0.8) { msg = '🎉 Excellent !';  sub = 'Très belle performance, tu as bien suivi la présentation !'; }
+  else if (pct >= 0.6) { msg = '👍 Bien joué !';  sub = 'Bon score ! Relis les questions que tu as manquées pour tout retenir.'; }
+  else if (pct >= 0.4) { msg = '📚 Pas mal !';    sub = 'Continue comme ça, relis la présentation et retente ta chance !'; }
+  else                 { msg = '💪 Continue !';   sub = 'Ne te décourage pas — les fun facts valent le coup d\'être relus !'; }
+
+  document.getElementById('score-msg').textContent = msg;
+  document.getElementById('score-sub').textContent = sub;
+}
+
+function restart() {
+  score = 0; current = 0;
+  questions = shuffle([...ALL_QUESTIONS]);
+  document.getElementById('score-screen').style.display = 'none';
+  document.getElementById('quiz-screen').style.display = 'block';
+  loadQuestion();
+}
+
+questions = shuffle([...ALL_QUESTIONS]);
+loadQuestion();
+</script>
+</body>
+</html>
