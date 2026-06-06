@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cas Clinique — Lucas, 8 ans</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: system-ui, sans-serif;
+  background: linear-gradient(135deg, #1E1030 0%, #2D1B5E 100%);
+  min-height: 100vh; padding: 1.5rem 1rem;
+  display: flex; justify-content: center;
+}
+.card {
+  background: #fff; border-radius: 20px; padding: 2rem;
+  max-width: 920px; width: 100%;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+}
+h1 { font-size: 22px; font-weight: 700; color: #1a1a2e; margin-bottom: 4px; }
+.subtitle { font-size: 13px; color: #6b6b80; margin-bottom: 1.5rem; line-height: 1.6; }
+.progress-wrap { background: #eee; border-radius: 99px; height: 8px; margin-bottom: 6px; }
+.progress-bar  { height: 8px; border-radius: 99px; background: linear-gradient(90deg,#6C3FC5,#EC4899); transition: width 0.4s; }
+.progress-label { font-size: 12px; color:#888; text-align:right; margin-bottom:1.5rem; }
+.screen { display: none; }
+.screen.active { display: block; }
+.speech {
+  background: #F8F6FF; border-left: 4px solid #6C3FC5;
+  border-radius: 0 12px 12px 0; padding: 1.25rem 1.5rem;
+  margin-bottom: 1.5rem; font-size: 14px; line-height: 1.7; color: #1a1a2e;
+}
+.doctor-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: #6C3FC5; color: #fff; border-radius: 99px;
+  padding: 4px 12px; font-size: 12px; font-weight: 600; margin-bottom: 10px;
+}
+.section-label {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: #888; margin-bottom: 10px;
+}
+.seq-row { display: flex; gap: 3px; flex-wrap: wrap; margin-bottom: 6px; align-items: center; }
+.seq-label { font-size: 11px; color: #888; width: 72px; flex-shrink: 0; font-weight: 600; }
+.base-box {
+  width: 28px; height: 28px; border-radius: 5px; display: flex;
+  align-items: center; justify-content: center;
+  font-family: 'Courier New', monospace; font-size: 12px; font-weight: 700;
+  border: 1.5px solid #ddd; transition: all 0.15s; flex-shrink: 0;
+}
+.base-A { background:#E1F5EE; color:#0F6E56; border-color:#9FE1CB; }
+.base-T { background:#EEF6FF; color:#185FA5; border-color:#B5D4F4; }
+.base-G { background:#FFF3CD; color:#854F0B; border-color:#FAC775; }
+.base-C { background:#FFF0F5; color:#993556; border-color:#F4C0D1; }
+.base-box.clickable { cursor: pointer; }
+.base-box.clickable:hover { transform: scale(1.15); box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+.base-box.selected  { border-color: #6C3FC5 !important; box-shadow: 0 0 0 2.5px #D5CCF5; transform: scale(1.1); }
+.base-box.correct-pick { background:#FCEBEB !important; color:#D4537E !important; border-color:#D4537E !important; transform:none; box-shadow:none; }
+.base-box.ref-dim { opacity: 0.45; }
+.base-box.wrong-click { animation: wiggle 0.3s ease; }
+@keyframes wiggle { 0%,100%{transform:rotate(0)} 25%{transform:rotate(-6deg)} 75%{transform:rotate(6deg)} }
+
+.patient-card {
+  border: 1.5px solid #e2e2e8; border-radius: 14px;
+  padding: 1.25rem; margin-bottom: 1rem; transition: border-color 0.3s, background 0.3s;
+}
+.patient-card.correct-card   { border-color: #1D9E75; background: #F0FBF7; }
+.patient-card.incorrect-card { border-color: #D4537E; background: #FFF0F5; }
+.patient-name { font-size: 14px; font-weight: 700; color: #1a1a2e; margin-bottom: 10px; }
+.progress-hint { font-size: 12px; color: #888; font-style:italic; margin-top:6px; min-height:18px; }
+.answer-row { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; align-items: center; }
+.btn-mut {
+  padding: 8px 20px; border-radius: 8px; border: none;
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  background: #D4537E; color: #fff; transition: opacity 0.15s; display: none;
+}
+.btn-mut.visible { display: inline-block; }
+.btn-mut:hover { opacity: 0.85; }
+.btn-ok {
+  padding: 8px 20px; border-radius: 8px; border: 1.5px solid #1D9E75;
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  background: #fff; color: #1D9E75; transition: all 0.15s;
+}
+.btn-ok:hover { background: #E1F5EE; }
+.btn-ok:disabled, .btn-mut:disabled { opacity: 0.4; cursor: default; }
+.inline-fb { font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 99px; display: none; }
+.inline-fb.ok  { background: #EAF3DE; color: #27500A; }
+.inline-fb.err { background: #FCEBEB; color: #791F1F; }
+
+.transition-box {
+  background: linear-gradient(135deg, #1E1030, #2D1B5E);
+  border-radius: 16px; padding: 2rem; text-align: center; color: #fff; margin-bottom: 1.5rem;
+}
+.transition-box h2 { font-size: 22px; margin-bottom: 10px; }
+.transition-box p  { font-size: 14px; color: #C4B5FD; line-height: 1.7; }
+.transition-box .big-emoji { font-size: 48px; margin-bottom: 12px; display: block; }
+
+/* MRD individual cards */
+.mrd-patient-block {
+  border: 1.5px solid #e2e2e8; border-radius: 14px;
+  padding: 1.25rem; margin-bottom: 1.5rem;
+}
+.mrd-patient-name { font-size: 14px; font-weight: 700; margin-bottom: 10px; color: #1a1a2e; }
+.mrd-chart-wrap { position: relative; margin-bottom: 10px; }
+.mrd-options { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.mrd-opt {
+  padding: 7px 16px; border-radius: 8px; border: 1.5px solid #ddd;
+  font-size: 13px; font-weight: 600; cursor: pointer; background: #fff;
+  color: #1a1a2e; transition: all 0.15s;
+}
+.mrd-opt:hover { border-color: #6C3FC5; background: #F8F6FF; }
+.mrd-opt.selected-correct { background: #EAF3DE; border-color: #1D9E75; color: #27500A; }
+.mrd-opt.selected-wrong   { background: #FCEBEB; border-color: #D4537E; color: #791F1F; }
+
+.btn-main {
+  width: 100%; padding: 13px; border-radius: 12px; border: none;
+  background: linear-gradient(90deg,#6C3FC5,#8B5CF6);
+  color: #fff; font-size: 15px; font-weight: 600; cursor: pointer;
+  margin-top: 1rem; transition: opacity 0.2s;
+}
+.btn-main:hover { opacity: 0.9; }
+.btn-main:disabled { opacity: 0.4; cursor: default; }
+.score-screen { text-align: center; padding: 1rem 0; }
+.score-circle {
+  width: 130px; height: 130px; border-radius: 50%;
+  background: linear-gradient(135deg,#6C3FC5,#EC4899);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  margin: 0 auto 1.25rem; box-shadow: 0 8px 24px rgba(108,63,197,0.35);
+}
+.score-num { font-size: 40px; font-weight: 800; color: #fff; }
+.score-den { font-size: 14px; color: rgba(255,255,255,0.8); }
+.score-msg { font-size: 20px; font-weight: 700; color: #1a1a2e; margin-bottom: 8px; }
+.score-sub { font-size: 13px; color: #6b6b80; line-height: 1.6; margin-bottom: 1.5rem; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="progress-wrap"><div class="progress-bar" id="prog-bar" style="width:0%"></div></div>
+  <div class="progress-label" id="prog-label">Introduction</div>
+
+  <!-- ══ INTRO ══ -->
+  <div class="screen active" id="screen-intro">
+    <h1>🏥 Cas Clinique — Lucas, 8 ans</h1>
+    <p class="subtitle">Tu es technicien de laboratoire à l'Hôpital Robert Debré. Un dossier urgent vient d'arriver.</p>
+    <div class="speech">
+      <div class="doctor-badge">👨‍⚕️ Dr Martin — Hématologue</div><br>
+      <em>« Bonjour. Je vous soumets un cas urgent : <strong>Lucas</strong>, 8 ans, présente depuis plusieurs semaines une fatigue intense, des douleurs dans les jambes et des épisodes fébriles répétés. Sa NFS montre un nombre anormalement élevé de globules blancs et une chute des globules rouges et des plaquettes. Je suspecte une <strong>leucémie aiguë lymphoblastique</strong>.<br><br>
+      L'ADN a été extrait à partir d'un prélèvement sanguin de Lucas et de <strong>4 autres patients</strong> présentant des symptômes similaires. Votre mission : comparer la séquence ADN de chaque patient à la séquence de référence saine, identifier les bases mutées si elles existent, et conclure. »</em>
+    </div>
+    <div style="background:#FFF3CD;border:1px solid #F59E0B;border-radius:10px;padding:12px 16px;font-size:13px;color:#7B4F00;margin-bottom:1.5rem;">
+      🔬 <strong>Comment jouer :</strong> Clique sur les bases ADN qui semblent différentes de la référence.
+      Trouve les <strong>3 bases mutées</strong> pour débloquer le bouton "Séquence mutée". Si la séquence est normale, clique directement sur "Séquence normale".
+    </div>
+    <button class="btn-main" onclick="showScreen('screen-diag')">Commencer le diagnostic →</button>
+  </div>
+
+  <!-- ══ DIAGNOSTIC ══ -->
+  <div class="screen" id="screen-diag">
+    <h1>🔬 Étape 1 — Diagnostic moléculaire</h1>
+    <p class="subtitle">Compare la séquence ADN de chaque patient à la séquence de référence. Clique sur les bases mutées pour les identifier.</p>
+    <div style="background:#F8F6FF;border:1.5px solid #D5CCF5;border-radius:12px;padding:1rem 1.25rem;margin-bottom:1.25rem;overflow-x:auto;">
+      <div class="section-label">Séquence ADN de référence (gène sain) — 27 bases</div>
+      <div class="seq-row" id="ref-seq-dna"></div>
+    </div>
+    <div id="patients-diag"></div>
+    <div id="diag-feedback" style="display:none;background:#EAF3DE;border:1px solid #3B6D11;border-radius:10px;padding:12px 16px;font-size:13px;color:#27500A;margin-bottom:1rem;"></div>
+    <button class="btn-main" id="btn-diag-next" onclick="showTransition()" disabled>Voir les résultats du traitement →</button>
+  </div>
+
+  <!-- ══ TRANSITION ══ -->
+  <div class="screen" id="screen-transition">
+    <div class="transition-box">
+      <span class="big-emoji">💊</span>
+      <h2>30 jours plus tard…</h2>
+      <p>Grâce à votre analyse, le Dr Martin a pu confirmer le diagnostic pour chaque patient porteur d'une mutation et démarrer un traitement adapté immédiatement.<br><br>
+      <strong>30 jours plus tard</strong>, les patients reviennent pour leur premier contrôle MRD (Maladie Résiduelle Minime). On va comparer leur charge tumorale à <strong>J0</strong> (diagnostic), <strong>J15</strong> et <strong>J30</strong> pour évaluer si le traitement est efficace.</p>
+    </div>
+    <div style="background:#F8F6FF;border:1.5px solid #D5CCF5;border-radius:12px;padding:1rem 1.25rem;margin-bottom:1.5rem;font-size:13px;color:#1a1a2e;line-height:1.7;">
+      📊 <strong>Comment interpréter ?</strong><br>
+      • <strong>Rémission</strong> : charge indétectable ou très faible (≤ 0.01%)<br>
+      • <strong>Traitement en cours</strong> : charge en baisse mais pas encore en rémission<br>
+      • <strong>Rechute</strong> : charge revenue à un niveau élevé après être passée proche de 0<br>
+      • <strong>Échec thérapeutique</strong> : charge stable ou en hausse malgré le traitement
+    </div>
+    <button class="btn-main" onclick="showMRD()">Analyser le suivi MRD →</button>
+  </div>
+
+  <!-- ══ MRD ══ -->
+  <div class="screen" id="screen-mrd">
+    <h1>📈 Étape 2 — Suivi MRD post-traitement</h1>
+    <p class="subtitle">Pour chaque patient, observe les points de charge tumorale à J0, J15 et J30, puis interprète le résultat.</p>
+    <div id="mrd-patients"></div>
+    <div id="mrd-feedback" style="display:none;background:#EAF3DE;border:1px solid #3B6D11;border-radius:10px;padding:12px 16px;font-size:13px;color:#27500A;margin-bottom:1rem;"></div>
+    <button class="btn-main" id="btn-mrd-next" onclick="showFinalScore()" disabled>Voir mon score final →</button>
+  </div>
+
+  <!-- ══ FINAL ══ -->
+  <div class="screen" id="screen-final">
+    <div class="score-screen">
+      <div class="score-circle">
+        <div class="score-num" id="final-num">0</div>
+        <div class="score-den" id="final-den">/10</div>
+      </div>
+      <div class="score-msg" id="final-msg"></div>
+      <div class="score-sub" id="final-sub"></div>
+      <button class="btn-main" onclick="restartGame()" style="max-width:300px;margin:0 auto;display:block;">↺ Recommencer</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+// ─── DATA ────────────────────────────────────────────────────────────────
+const REF = 'ATGCCTGAAGCAAAAGTTGGCACATTG'; // 27 bases
+
+function applyMut(ref, muts) {
+  const arr = ref.split('');
+  muts.forEach(([pos, base]) => arr[pos] = base);
+  return arr.join('');
+}
+
+const PATIENTS = [
+  { name:'Lucas, 8 ans',    seq: applyMut(REF,[[5,'A'],[11,'T'],[22,'G']]), mutPos:[5,11,22],  mutated:true  },
+  { name:'Emma, 34 ans',    seq: REF,                                        mutPos:[],          mutated:false },
+  { name:'Théo, 12 ans',    seq: applyMut(REF,[[3,'T'],[14,'G'],[24,'C']]), mutPos:[3,14,24],  mutated:true  },
+  { name:'Camille, 56 ans', seq: REF,                                        mutPos:[],          mutated:false },
+  { name:'Yanis, 6 ans',    seq: applyMut(REF,[[1,'C'],[9,'C'],[20,'T']]),  mutPos:[1,9,20],   mutated:true  },
+];
+
+const MRD_PATIENTS = [
+  { name:'Lucas, 8 ans',    color:'#6C3FC5', j0:62,   j15:8,     j30:0.8,    answer:'traitement', label:'⏳ Traitement en cours' },
+  { name:'Théo, 12 ans',    color:'#EC4899', j0:74,   j15:0.005, j30:38,     answer:'rechute',    label:'🔴 Rechute' },
+  { name:'Yanis, 6 ans',    color:'#06B6D4', j0:55,   j15:4,     j30:0.005,  answer:'remission',  label:'✅ Rémission atteinte' },
+  { name:'Matthieu, 9 ans', color:'#F59E0B', j0:48,   j15:3,     j30:0.008,  answer:'remission',  label:'✅ Rémission atteinte' },
+  { name:'Sofia, 15 ans',   color:'#10B981', j0:66,   j15:59,    j30:62,     answer:'echec',      label:'❌ Échec thérapeutique' },
+];
+
+const MRD_OPTIONS = [
+  { value:'remission',  label:'✅ Rémission atteinte' },
+  { value:'traitement', label:'⏳ Traitement en cours' },
+  { value:'rechute',    label:'🔴 Rechute' },
+  { value:'echec',      label:'❌ Échec thérapeutique' },
+];
+
+// ─── STATE ───────────────────────────────────────────────────────────────
+let diagAnswers = {}, diagClicks = {}, diagScores = 0;
+let mrdAnswers  = {}, mrdScores  = 0;
+let mrdCharts   = {};
+
+// ─── SCREEN ──────────────────────────────────────────────────────────────
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  const pct = {'screen-intro':0,'screen-diag':33,'screen-transition':55,'screen-mrd':66,'screen-final':100};
+  const lbl = {'screen-intro':'Introduction','screen-diag':'Étape 1 / 2 — Diagnostic',
+               'screen-transition':'Transition','screen-mrd':'Étape 2 / 2 — Suivi MRD','screen-final':'Score final'};
+  document.getElementById('prog-bar').style.width = (pct[id]||0)+'%';
+  document.getElementById('prog-label').textContent = lbl[id]||'';
+  window.scrollTo(0,0);
+}
+
+// ─── REF SEQUENCE ────────────────────────────────────────────────────────
+function buildRefSeq() {
+  const cont = document.getElementById('ref-seq-dna');
+  cont.innerHTML = '';
+  const lbl = document.createElement('span');
+  lbl.className = 'seq-label'; lbl.textContent = 'Référence :';
+  cont.appendChild(lbl);
+  REF.split('').forEach(base => {
+    const b = document.createElement('div');
+    b.className = `base-box base-${base} ref-dim`;
+    b.textContent = base;
+    cont.appendChild(b);
+  });
+}
+
+// ─── DIAG PATIENTS ───────────────────────────────────────────────────────
+function buildDiagPatients() {
+  const cont = document.getElementById('patients-diag');
+  cont.innerHTML = '';
+  PATIENTS.forEach((p, pi) => {
+    diagClicks[pi] = new Set();
+    const card = document.createElement('div');
+    card.className = 'patient-card'; card.id = 'pcard-'+pi;
+
+    const name = document.createElement('div');
+    name.className = 'patient-name'; name.textContent = '👤 '+p.name;
+    card.appendChild(name);
+
+    // Ref row dimmed
+    const refWrap = document.createElement('div');
+    const refRow = document.createElement('div'); refRow.className = 'seq-row';
+    const refLbl = document.createElement('span'); refLbl.className = 'seq-label'; refLbl.textContent = 'Référence :';
+    refRow.appendChild(refLbl);
+    REF.split('').forEach(base => {
+      const b = document.createElement('div');
+      b.className = `base-box base-${base} ref-dim`;
+      b.textContent = base; refRow.appendChild(b);
+    });
+    refWrap.appendChild(refRow); card.appendChild(refWrap);
+
+    // Patient row
+    const patWrap = document.createElement('div');
+    const patRow = document.createElement('div'); patRow.className = 'seq-row';
+    const patLbl = document.createElement('span'); patLbl.className = 'seq-label'; patLbl.textContent = 'Patient :';
+    patRow.appendChild(patLbl);
+    p.seq.split('').forEach((base, i) => {
+      const b = document.createElement('div');
+      b.className = `base-box base-${base} clickable`;
+      b.textContent = base; b.id = `b-${pi}-${i}`;
+      b.onclick = () => toggleBase(pi, i, b, p.mutPos.includes(i));
+      patRow.appendChild(b);
+    });
+    patWrap.appendChild(patRow); card.appendChild(patWrap);
+
+    // Hint
+    const hint = document.createElement('div');
+    hint.className = 'progress-hint'; hint.id = 'hint-'+pi;
+    hint.textContent = p.mutated
+      ? 'Clique sur les bases qui semblent différentes de la référence.'
+      : 'Compare attentivement chaque base avec la référence.';
+    card.appendChild(hint);
+
+    // Buttons
+    const ansRow = document.createElement('div'); ansRow.className = 'answer-row';
+    const btnMut = document.createElement('button');
+    btnMut.className = 'btn-mut'; btnMut.id = 'btn-mut-'+pi;
+    btnMut.textContent = '⚠️ Séquence mutée'; btnMut.onclick = () => submitDiag(pi, true);
+    const btnOk = document.createElement('button');
+    btnOk.className = 'btn-ok'; btnOk.id = 'btn-ok-'+pi;
+    btnOk.textContent = '✅ Séquence normale'; btnOk.onclick = () => submitDiag(pi, false);
+    const fb = document.createElement('span');
+    fb.className = 'inline-fb'; fb.id = 'fb-diag-'+pi;
+    ansRow.appendChild(btnMut); ansRow.appendChild(btnOk); ansRow.appendChild(fb);
+    card.appendChild(ansRow);
+    cont.appendChild(card);
+  });
+}
+
+function toggleBase(pi, i, box, isRealMut) {
+  if (diagAnswers[pi] !== undefined) return;
+  const clicks = diagClicks[pi];
+  if (clicks.has(i)) {
+    clicks.delete(i); box.classList.remove('selected');
+  } else {
+    if (!isRealMut) {
+      box.classList.add('wrong-click');
+      setTimeout(() => box.classList.remove('wrong-click'), 350);
+      return;
+    }
+    clicks.add(i); box.classList.add('selected');
+  }
+  const found = clicks.size;
+  const total = PATIENTS[pi].mutPos.length;
+  const hint = document.getElementById('hint-'+pi);
+  const btnMut = document.getElementById('btn-mut-'+pi);
+  if (found === 0)      { hint.textContent = 'Clique sur les bases qui semblent différentes de la référence.'; btnMut.classList.remove('visible'); }
+  else if (found < total){ hint.textContent = `${found} base${found>1?'s':''} sélectionnée${found>1?'s':''} sur ${total} — continue !`; btnMut.classList.remove('visible'); }
+  else                  { hint.textContent = `✅ ${total} bases identifiées ! Tu peux conclure.`; btnMut.classList.add('visible'); }
+}
+
+function submitDiag(pi, claimedMutated) {
+  if (diagAnswers[pi] !== undefined) return;
+  diagAnswers[pi] = claimedMutated;
+  const p = PATIENTS[pi];
+  const correct = claimedMutated === p.mutated;
+  if (correct) diagScores++;
+  p.mutPos.forEach(i => {
+    const b = document.getElementById(`b-${pi}-${i}`);
+    b.classList.remove('selected'); b.classList.add('correct-pick');
+  });
+  document.getElementById('pcard-'+pi).classList.add(correct ? 'correct-card' : 'incorrect-card');
+  const fb = document.getElementById('fb-diag-'+pi);
+  fb.style.display = 'inline-block';
+  fb.className = correct ? 'inline-fb ok' : 'inline-fb err';
+  fb.textContent = correct
+    ? (p.mutated ? `✅ Correct ! ${p.mutPos.length} mutation(s) identifiée(s).` : '✅ Correct ! Aucune mutation détectée.')
+    : (p.mutated ? '❌ Ce patient est bien muté !' : '❌ Ce patient est sain !');
+  document.getElementById('btn-mut-'+pi).disabled = true;
+  document.getElementById('btn-ok-'+pi).disabled  = true;
+  if (Object.keys(diagAnswers).length === PATIENTS.length) {
+    const fb2 = document.getElementById('diag-feedback');
+    fb2.style.display = 'block';
+    fb2.innerHTML = `Score diagnostic : <strong>${diagScores} / ${PATIENTS.length}</strong> — 
+      ${diagScores === PATIENTS.length ? 'Parfait !' : 'Bon travail, quelques erreurs à revoir.'}
+      Le Dr Martin peut démarrer les traitements.`;
+    document.getElementById('btn-diag-next').disabled = false;
+  }
+}
+
+// ─── TRANSITION ──────────────────────────────────────────────────────────
+function showTransition() { showScreen('screen-transition'); }
+
+// ─── MRD ─────────────────────────────────────────────────────────────────
+function showMRD() {
+  showScreen('screen-mrd');
+  setTimeout(buildMRDPatients, 100);
+}
+
+function buildMRDPatients() {
+  const cont = document.getElementById('mrd-patients');
+  cont.innerHTML = '';
+  Object.values(mrdCharts).forEach(c => c.destroy());
+  mrdCharts = {};
+
+  MRD_PATIENTS.forEach((p, pi) => {
+    const block = document.createElement('div');
+    block.className = 'mrd-patient-block'; block.id = 'mrd-block-'+pi;
+
+    const name = document.createElement('div');
+    name.className = 'mrd-patient-name';
+    name.textContent = `👤 ${p.name}`;
+    block.appendChild(name);
+
+    // Values summary
+    const vals = document.createElement('div');
+    vals.style.cssText = 'font-size:12px;color:#888;margin-bottom:10px;font-family:monospace;';
+    vals.textContent = `J0 : ${p.j0}%   |   J15 : ${p.j15 < 0.01 ? p.j15.toExponential(1) : p.j15}%   |   J30 : ${p.j30 < 0.01 ? p.j30.toExponential(1) : p.j30}%`;
+    block.appendChild(vals);
+
+    // Canvas
+    const wrap = document.createElement('div'); wrap.className = 'mrd-chart-wrap';
+    const canvas = document.createElement('canvas');
+    canvas.id = 'chart-'+pi; canvas.height = 220;
+    canvas.style.width = '100%';
+    wrap.appendChild(canvas); block.appendChild(wrap);
+
+    // Options
+    const opts = document.createElement('div'); opts.className = 'mrd-options';
+    MRD_OPTIONS.forEach(opt => {
+      const btn = document.createElement('button'); btn.className = 'mrd-opt';
+      btn.textContent = opt.label;
+      btn.onclick = () => submitMRD(pi, opt.value, btn, p.answer);
+      opts.appendChild(btn);
+    });
+    const fb = document.createElement('span'); fb.className = 'inline-fb'; fb.id = 'fb-mrd-'+pi;
+    opts.appendChild(fb); block.appendChild(opts);
+    cont.appendChild(block);
+
+    // Build chart after DOM insertion
+    requestAnimationFrame(() => buildSingleChart(pi, p, canvas));
+  });
+}
+
+function buildSingleChart(pi, p, canvas) {
+  const ctx = canvas.getContext('2d');
+  const chart = new Chart(ctx, {
+    type: 'scatter',
+    data: {
+      datasets: [{
+        label: p.name,
+        data: [{x:0,y:p.j0},{x:15,y:p.j15},{x:30,y:p.j30}],
+        backgroundColor: p.color, borderColor: p.color,
+        pointRadius: 10, pointHoverRadius: 13, showLine: false,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: {
+          label: c => `J${c.parsed.x} : ${c.parsed.y < 0.01 ? c.parsed.y.toExponential(1) : c.parsed.y}%`
+        }}
+      },
+      scales: {
+        x: {
+          type:'linear', min:-2, max:35,
+          title:{ display:true, text:'Jours', font:{size:11} },
+          ticks:{ callback: v => ({0:'J0',15:'J15',30:'J30'})[v]||'' }
+        },
+        y: {
+          type:'logarithmic', min:0.001, max:120,
+          title:{ display:true, text:'Charge tumorale (%)', font:{size:11} },
+          ticks:{ callback: v => [100,10,1,0.1,0.01,0.001].includes(v) ? v+'%' : '' }
+        }
+      }
+    },
+    plugins: [{
+      id: 'threshold-'+pi,
+      afterDraw(chart) {
+        const {ctx, scales:{x,y}} = chart;
+        const yPx = y.getPixelForValue(0.01);
+        ctx.save(); ctx.setLineDash([6,4]);
+        ctx.strokeStyle = '#D4537E'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(x.left, yPx); ctx.lineTo(x.right, yPx); ctx.stroke();
+        ctx.fillStyle = '#D4537E'; ctx.font = '10px system-ui';
+        ctx.fillText('Seuil de rémission', x.left+6, yPx-5);
+        ctx.restore();
+      }
+    }]
+  });
+  mrdCharts[pi] = chart;
+}
+
+function submitMRD(pi, chosen, btn, correct) {
+  if (mrdAnswers[pi] !== undefined) return;
+  mrdAnswers[pi] = chosen;
+  const isOk = chosen === correct;
+  if (isOk) mrdScores++;
+  document.getElementById('mrd-block-'+pi).querySelectorAll('.mrd-opt').forEach(b => {
+    b.disabled = true;
+    if (b === btn) b.classList.add(isOk ? 'selected-correct' : 'selected-wrong');
+  });
+  const fb = document.getElementById('fb-mrd-'+pi);
+  fb.style.display = 'inline-block';
+  fb.className = isOk ? 'inline-fb ok' : 'inline-fb err';
+  const correctLabel = MRD_OPTIONS.find(o => o.value === correct).label;
+  fb.textContent = isOk ? '✅ Correct !' : `❌ Réponse : ${correctLabel}`;
+  if (Object.keys(mrdAnswers).length === MRD_PATIENTS.length) {
+    document.getElementById('mrd-feedback').style.display = 'block';
+    document.getElementById('mrd-feedback').innerHTML =
+      `Score suivi MRD : <strong>${mrdScores} / ${MRD_PATIENTS.length}</strong>`;
+    document.getElementById('btn-mrd-next').disabled = false;
+  }
+}
+
+// ─── FINAL SCORE ─────────────────────────────────────────────────────────
+function showFinalScore() {
+  const total = diagScores + mrdScores;
+  const max   = PATIENTS.length + MRD_PATIENTS.length;
+  document.getElementById('final-num').textContent = total;
+  document.getElementById('final-den').textContent = '/'+max;
+  const pct = total/max;
+  const [,msg,sub] = [
+    [1,    '🏆 Parfait !',   'Excellent travail de technicien ! Tu as tout identifié correctement.'],
+    [0.8,  '🎉 Excellent !', 'Très bonne analyse, quelques petites erreurs mais rien de grave.'],
+    [0.6,  '👍 Bien joué !', 'Bon travail ! Relis les résultats pour comprendre tes erreurs.'],
+    [0.4,  '📚 Pas mal !',   'Continue, la biologie moléculaire demande de la pratique !'],
+    [0,    '💪 Continue !',  'Ne te décourage pas — relis le cours et retente !'],
+  ].find(([t]) => pct >= t);
+  document.getElementById('final-msg').textContent = msg;
+  document.getElementById('final-sub').textContent = sub;
+  showScreen('screen-final');
+}
+
+// ─── RESTART ─────────────────────────────────────────────────────────────
+function restartGame() {
+  diagAnswers = {}; diagClicks = {}; diagScores = 0;
+  mrdAnswers  = {}; mrdScores  = 0;
+  Object.values(mrdCharts).forEach(c => c.destroy()); mrdCharts = {};
+  buildDiagPatients();
+  showScreen('screen-intro');
+}
+
+// ─── INIT ────────────────────────────────────────────────────────────────
+buildRefSeq();
+buildDiagPatients();
+</script>
+</body>
+</html>
