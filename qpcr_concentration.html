@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>qPCR — Deviner la concentration</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: system-ui, sans-serif;
+  background: linear-gradient(135deg, #0D1F2D 0%, #1A3A4A 100%);
+  min-height: 100vh; padding: 1.5rem 1rem;
+  display: flex; justify-content: center;
+}
+.card {
+  background: #F7F9FC; border-radius: 20px;
+  padding: 2rem; max-width: 960px; width: 100%;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+}
+h1 { font-size: 21px; font-weight: 700; color: #0D1F2D; margin-bottom: 4px; }
+.subtitle { font-size: 13px; color: #5A7080; margin-bottom: 1.5rem; line-height: 1.6; }
+
+.progress-wrap { background: #dde4ea; border-radius: 99px; height: 7px; margin-bottom: 6px; }
+.progress-bar  { height: 7px; border-radius: 99px; background: linear-gradient(90deg,#0097A7,#00BCD4); transition: width 0.4s; }
+.progress-label { font-size: 12px; color: #7A9AAA; text-align: right; margin-bottom: 1.25rem; }
+
+.screen { display: none; }
+.screen.active { display: block; }
+
+/* Intro */
+.intro-box {
+  background: #E3F6F8; border-left: 4px solid #0097A7;
+  border-radius: 0 12px 12px 0; padding: 1.25rem 1.5rem;
+  margin-bottom: 1.25rem; font-size: 14px; line-height: 1.7; color: #0D1F2D;
+}
+.intro-box strong { color: #0097A7; }
+
+/* Standard curve table */
+.std-table { width: 100%; border-collapse: collapse; margin-bottom: 1.5rem; font-size: 13px; }
+.std-table th { background: #0097A7; color: #fff; padding: 8px 14px; text-align: center; }
+.std-table td { padding: 7px 14px; text-align: center; border-bottom: 1px solid #DDE4EA; }
+.std-table tr:nth-child(even) td { background: #E3F6F8; }
+
+/* Case layout */
+.case-header { display: flex; align-items: center; gap: 12px; margin-bottom: 1rem; flex-wrap: wrap; }
+.case-badge { background: #0097A7; color: #fff; border-radius: 99px; padding: 4px 14px; font-size: 12px; font-weight: 700; }
+.case-title { font-size: 15px; font-weight: 600; color: #0D1F2D; }
+
+.case-body { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; margin-bottom: 1.25rem; }
+@media (max-width: 620px) { .case-body { grid-template-columns: 1fr; } }
+
+/* Chart */
+.chart-wrap { background: #fff; border-radius: 12px; border: 1.5px solid #D0DDE5; padding: 14px; }
+.chart-wrap canvas { width: 100%; display: block; border-radius: 6px; }
+
+/* Info panel */
+.info-panel { display: flex; flex-direction: column; gap: 10px; }
+.info-box { background: #fff; border-radius: 10px; border: 1.5px solid #D0DDE5; padding: 14px; }
+.ib-title { font-size: 11px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: #5A7080; margin-bottom: 6px; }
+.ct-big { font-family: 'Courier New', monospace; font-size: 32px; font-weight: 800; color: #D4537E; }
+.ct-negative { font-family: 'Courier New', monospace; font-size: 24px; font-weight: 800; color: #888; }
+
+/* Ref table small */
+.ref-mini { width: 100%; border-collapse: collapse; font-size: 11px; }
+.ref-mini th { background: #E3F6F8; color: #0097A7; padding: 5px 8px; text-align: center; font-weight: 700; }
+.ref-mini td { padding: 4px 8px; text-align: center; border-bottom: 1px solid #EEF2F5; font-family: 'Courier New', monospace; }
+.ref-mini tr.highlight td { background: #FFF3CD; font-weight: 700; }
+
+/* Options */
+.options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 1rem; }
+@media (max-width: 500px) { .options-grid { grid-template-columns: 1fr; } }
+
+.opt-btn {
+  padding: 10px 12px; border-radius: 10px; border: 1.5px solid #C8D8E0;
+  background: #fff; color: #0D1F2D; font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: all 0.15s; text-align: left; line-height: 1.4;
+}
+.opt-btn:hover { border-color: #0097A7; background: #E3F6F8; }
+.opt-btn.correct { background: #EAF3DE; border-color: #1D9E75; color: #27500A; pointer-events: none; }
+.opt-btn.wrong   { background: #FCEBEB; border-color: #D4537E; color: #791F1F; pointer-events: none; animation: shake 0.35s ease; }
+.opt-btn.reveal  { background: #EAF3DE; border-color: #1D9E75; color: #27500A; pointer-events: none; }
+.opt-btn:disabled { pointer-events: none; opacity: 0.5; }
+
+@keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-5px)} 75%{transform:translateX(5px)} }
+
+.case-feedback {
+  border-radius: 10px; padding: 12px 16px; font-size: 13px; line-height: 1.6;
+  margin-bottom: 1rem; display: none;
+}
+.case-feedback.ok  { background: #EAF3DE; border: 1px solid #3B6D11; color: #27500A; }
+.case-feedback.err { background: #FCEBEB; border: 1px solid #A32D2D; color: #791F1F; }
+
+.btn-main {
+  width: 100%; padding: 13px; border-radius: 12px; border: none;
+  background: linear-gradient(90deg, #0097A7, #00BCD4);
+  color: #fff; font-size: 15px; font-weight: 600; cursor: pointer;
+  margin-top: 0.5rem; transition: opacity 0.2s;
+}
+.btn-main:hover { opacity: 0.88; }
+.btn-main:disabled { opacity: 0.35; cursor: default; }
+
+/* Score */
+.score-screen { text-align: center; padding: 1rem 0; }
+.score-circle {
+  width: 130px; height: 130px; border-radius: 50%;
+  background: linear-gradient(135deg, #0097A7, #00BCD4);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  margin: 0 auto 1.25rem; box-shadow: 0 8px 24px rgba(0,151,167,0.4);
+}
+.score-num { font-size: 40px; font-weight: 800; color: #fff; }
+.score-den { font-size: 14px; color: rgba(255,255,255,0.8); }
+.score-msg { font-size: 19px; font-weight: 700; color: #0D1F2D; margin-bottom: 8px; }
+.score-sub { font-size: 13px; color: #5A7080; line-height: 1.6; margin-bottom: 1.5rem; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="progress-wrap"><div class="progress-bar" id="prog" style="width:0%"></div></div>
+  <div class="progress-label" id="prog-lbl">Introduction</div>
+
+  <!-- ══ INTRO ══ -->
+  <div class="screen active" id="s-intro">
+    <h1>🔬 qPCR — Devinez la concentration !</h1>
+    <p class="subtitle">À partir du Ct obtenu et de la gamme étalon, retrouve dans quelle plage de concentration se situe chaque échantillon inconnu.</p>
+
+    <div class="intro-box">
+      <strong>Comment utiliser une gamme étalon ?</strong><br><br>
+      Lors d'une qPCR, on fait toujours tourner en même temps des <strong>échantillons de concentration connue</strong> — c'est la gamme étalon. Elle permet de "calibrer" la lecture : chaque dilution donne un Ct précis. Plus la concentration est élevée, plus le signal apparaît tôt (Ct bas). En comparant le Ct d'un échantillon inconnu à la gamme, on peut estimer sa concentration.
+    </div>
+
+    <p style="font-size:12px;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:#5A7080;margin-bottom:8px;">Gamme étalon de référence</p>
+    <table class="std-table">
+      <thead><tr><th>Concentration</th><th>Ct obtenu</th><th>Interprétation</th></tr></thead>
+      <tbody>
+        <tr><td>10⁻¹</td><td>23,66</td><td>Très forte concentration</td></tr>
+        <tr><td>10⁻²</td><td>27,14</td><td>Forte concentration</td></tr>
+        <tr><td>10⁻³</td><td>30,53</td><td>Concentration modérée</td></tr>
+        <tr><td>5×10⁻⁴</td><td>31,90</td><td>Concentration modérée-faible</td></tr>
+        <tr><td>10⁻⁴</td><td>33,63</td><td>Faible concentration</td></tr>
+        <tr><td>5×10⁻⁵</td><td>34,77</td><td>Très faible concentration</td></tr>
+        <tr><td>10⁻⁵</td><td>35,42</td><td>Extrêmement faible</td></tr>
+      </tbody>
+    </table>
+
+    <button class="btn-main" onclick="startGame()">Commencer l'exercice →</button>
+  </div>
+
+  <!-- ══ CASE ══ -->
+  <div class="screen" id="s-case">
+    <div class="case-header">
+      <span class="case-badge" id="c-badge">Cas 1/4</span>
+      <span class="case-title" id="c-title"></span>
+    </div>
+    <div class="case-body">
+      <div class="chart-wrap">
+        <canvas id="c-canvas" width="480" height="300"></canvas>
+      </div>
+      <div class="info-panel">
+        <div class="info-box">
+          <div class="ib-title">Ct de l'échantillon inconnu</div>
+          <div id="c-ct-display"></div>
+          <div id="c-ct-hint" style="font-size:12px;color:#5A7080;margin-top:6px;"></div>
+        </div>
+        <div class="info-box">
+          <div class="ib-title">Gamme étalon</div>
+          <table class="ref-mini" id="c-ref-table"></table>
+        </div>
+      </div>
+    </div>
+
+    <p style="font-size:13px;font-weight:600;color:#0D1F2D;margin-bottom:8px;">Entre quelles concentrations se situe l'échantillon ?</p>
+    <div class="options-grid" id="c-options"></div>
+    <div class="case-feedback" id="c-feedback"></div>
+    <button class="btn-main" id="btn-next" onclick="nextCase()" disabled>Cas suivant →</button>
+  </div>
+
+  <!-- ══ SCORE ══ -->
+  <div class="screen" id="s-score">
+    <div class="score-screen">
+      <div class="score-circle">
+        <div class="score-num" id="sc-num">0</div>
+        <div class="score-den">/4</div>
+      </div>
+      <div class="score-msg" id="sc-msg"></div>
+      <div class="score-sub" id="sc-sub"></div>
+      <button class="btn-main" onclick="restart()" style="max-width:300px;margin:0 auto;display:block;">↺ Recommencer</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── STANDARD CURVE DATA ─────────────────────────────────────────────────
+const STANDARDS = [
+  { conc: '10⁻¹',   ct: 23.66 },
+  { conc: '10⁻²',   ct: 27.14 },
+  { conc: '10⁻³',   ct: 30.53 },
+  { conc: '5×10⁻⁴', ct: 31.90 },
+  { conc: '10⁻⁴',   ct: 33.63 },
+  { conc: '5×10⁻⁵', ct: 34.77 },
+  { conc: '10⁻⁵',   ct: 35.42 },
+];
+
+// ─── CASES ───────────────────────────────────────────────────────────────
+// For each unknown: ct (null = negative), answer index (between standards i and i+1), options
+const CASES = [
+  {
+    title: 'Échantillon A — Patient en début de traitement',
+    ct: 29.1,
+    ctHint: 'Le signal apparaît au cycle 29 — quelque part entre deux dilutions de la gamme.',
+    answer: 'entre_2_3',
+    options: [
+      { value:'entre_1_2',   label:'Entre 10⁻¹ et 10⁻²\n(Ct 23,66 – 27,14)' },
+      { value:'entre_2_3',   label:'Entre 10⁻² et 10⁻³\n(Ct 27,14 – 30,53)' },
+      { value:'entre_3_4',   label:'Entre 10⁻³ et 5×10⁻⁴\n(Ct 30,53 – 31,90)' },
+      { value:'inferieur',   label:'Inférieur à 10⁻⁵\n(Ct > 35,42)' },
+    ],
+    highlightStds: [1, 2],
+    feedbackOk:  '✅ Correct ! Ct = 29,1 se situe entre le Ct de 10⁻² (27,14) et celui de 10⁻³ (30,53). La concentration est donc comprise entre 10⁻² et 10⁻³. Charge tumorale encore notable.',
+    feedbackErr: '❌ Rappel : Ct = 29,1. Dans la gamme, 10⁻² donne Ct 27,14 et 10⁻³ donne Ct 30,53. Comme 27,14 < 29,1 < 30,53, la concentration est entre 10⁻² et 10⁻³.',
+  },
+  {
+    title: 'Échantillon B — Bilan J30 post-traitement',
+    ct: 34.2,
+    ctHint: 'Signal très tardif — la cible est présente en très faible quantité.',
+    answer: 'entre_5_6',
+    options: [
+      { value:'entre_3_4',   label:'Entre 10⁻³ et 5×10⁻⁴\n(Ct 30,53 – 31,90)' },
+      { value:'entre_4_5',   label:'Entre 10⁻⁴ et 5×10⁻⁵\n(Ct 33,63 – 34,77)' },
+      { value:'entre_5_6',   label:'Entre 5×10⁻⁵ et 10⁻⁵\n(Ct 34,77 – 35,42)' },
+      { value:'negatif',     label:'Négatif — aucune cible détectée' },
+    ],
+    highlightStds: [5, 6],
+    feedbackOk:  '✅ Exact ! Ct = 34,2 se situe entre le Ct de 10⁻⁴ (33,63) et celui de 5×10⁻⁵ (34,77). Concentration entre 10⁻⁴ et 5×10⁻⁵ — très faible charge résiduelle, excellent signe !',
+    feedbackErr: '❌ Ct = 34,2. Dans la gamme : 10⁻⁴ → 33,63 et 5×10⁻⁵ → 34,77. Comme 33,63 < 34,2 < 34,77, la concentration est entre 10⁻⁴ et 5×10⁻⁵.',
+  },
+  {
+    title: 'Échantillon C — Témoin négatif',
+    ct: null,
+    ctHint: 'Aucun signal détecté après 45 cycles.',
+    answer: 'negatif',
+    options: [
+      { value:'entre_4_5',   label:'Entre 10⁻⁴ et 5×10⁻⁵\n(Ct 33,63 – 34,77)' },
+      { value:'entre_5_6',   label:'Entre 5×10⁻⁵ et 10⁻⁵\n(Ct 34,77 – 35,42)' },
+      { value:'inferieur',   label:'Inférieur à 10⁻⁵\n(Ct > 35,42)' },
+      { value:'negatif',     label:'Négatif — aucune cible détectée (No Ct)' },
+    ],
+    highlightStds: [],
+    feedbackOk:  '✅ Parfait ! Aucun signal = No Ct = témoin négatif. Aucune cible ADN n\'est présente dans ce puits. C\'est exactement ce qu\'on attend d\'un témoin négatif — il valide que la réaction ne s\'amplifie pas "toute seule".',
+    feedbackErr: '❌ Observe le graphique : la courbe rouge reste plate jusqu\'au cycle 45 — aucune amplification. C\'est un résultat négatif (No Ct), pas une concentration faible.',
+  },
+  {
+    title: 'Échantillon D — Rechute suspectée',
+    ct: 25.4,
+    ctHint: 'Signal précoce — la cible est présente en grande quantité.',
+    answer: 'entre_1_2',
+    options: [
+      { value:'entre_1_2',   label:'Entre 10⁻¹ et 10⁻²\n(Ct 23,66 – 27,14)' },
+      { value:'entre_2_3',   label:'Entre 10⁻² et 10⁻³\n(Ct 27,14 – 30,53)' },
+      { value:'entre_3_4',   label:'Entre 10⁻³ et 5×10⁻⁴\n(Ct 30,53 – 31,90)' },
+      { value:'negatif',     label:'Négatif — aucune cible détectée' },
+    ],
+    highlightStds: [0, 1],
+    feedbackOk:  '✅ Correct ! Ct = 25,4 se situe entre le Ct de 10⁻¹ (23,66) et celui de 10⁻² (27,14). Forte concentration en ADN tumoral — la rechute est confirmée. Reprise immédiate du traitement.',
+    feedbackErr: '❌ Ct = 25,4. Dans la gamme : 10⁻¹ → 23,66 et 10⁻² → 27,14. Comme 23,66 < 25,4 < 27,14, la concentration est entre 10⁻¹ et 10⁻². Signal très précoce = forte charge tumorale.',
+  },
+];
+
+// ─── STATE ───────────────────────────────────────────────────────────────
+let current = 0, score = 0, answered = false;
+
+// ─── CURVE GENERATOR ─────────────────────────────────────────────────────
+function sigmoid(c, ct) {
+  return 1 / (1 + Math.exp(-(c - ct) * 0.45));
+}
+
+function drawChart(canvasEl, unknownCt) {
+  const W = canvasEl.width, H = canvasEl.height;
+  const ctx = canvasEl.getContext('2d');
+  ctx.clearRect(0,0,W,H);
+
+  // Background
+  ctx.fillStyle = '#FAFBFC'; ctx.fillRect(0,0,W,H);
+
+  // Margins
+  const ml=42, mr=14, mt=18, mb=32;
+  const cw = W-ml-mr, ch = H-mt-mb;
+
+  // Grid
+  ctx.strokeStyle = '#E0E8EE'; ctx.lineWidth = 0.5;
+  for (let i=1;i<6;i++) {
+    const y = mt + ch*i/6;
+    ctx.beginPath(); ctx.moveTo(ml,y); ctx.lineTo(W-mr,y); ctx.stroke();
+  }
+  for (let i=1;i<9;i++) {
+    const x = ml + cw*i/9;
+    ctx.beginPath(); ctx.moveTo(x,mt); ctx.lineTo(x,mt+ch); ctx.stroke();
+  }
+
+  // Axes
+  ctx.strokeStyle = '#9AB0BE'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(ml,mt); ctx.lineTo(ml,mt+ch); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(ml,mt+ch); ctx.lineTo(W-mr,mt+ch); ctx.stroke();
+
+  // Axis labels
+  ctx.fillStyle = '#7A9AAA'; ctx.font = '9px system-ui';
+  ctx.fillText('0', ml-10, mt+ch+3);
+  ctx.fillText('45', W-mr-10, mt+ch+12);
+  ctx.fillText('Cycles →', ml+cw/2-20, mt+ch+12);
+
+  // Y axis log-like labels (fluorescence)
+  ['Bas', '', 'Haut'].forEach((lbl,i) => {
+    const y = mt + ch*(1-i*0.5);
+    ctx.fillStyle='#9AB0BE'; ctx.font='8px system-ui';
+    ctx.fillText(lbl, 2, y+3);
+  });
+
+  // Threshold line
+  const threshY = mt + ch * 0.25;
+  ctx.strokeStyle='#D4537E'; ctx.lineWidth=1.2; ctx.setLineDash([5,3]);
+  ctx.beginPath(); ctx.moveTo(ml,threshY); ctx.lineTo(W-mr,threshY); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle='#D4537E'; ctx.font='bold 9px system-ui';
+  ctx.fillText('Threshold', ml+4, threshY-3);
+
+  // Draw standard curves (blue, faded)
+  const stdColors = ['#4A90D9','#5BA0E9','#6BB0F9','#7BBAF0','#8BCAE0','#9BDAD0','#ABE0C0'];
+  STANDARDS.forEach((s, idx) => {
+    ctx.strokeStyle = stdColors[idx] || '#6BB0F9';
+    ctx.lineWidth = 1.2; ctx.globalAlpha = 0.6;
+    ctx.beginPath();
+    for (let c=1;c<=45;c++) {
+      const v = sigmoid(c, s.ct) * 0.88 + 0.02 + (Math.random()*0.008);
+      const x = ml + (c-1)/(44)*cw;
+      const y = mt + ch*(1 - Math.min(v,1)*0.85);
+      c===1 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  });
+
+  // Std curve legend
+  ctx.fillStyle='#4A90D9'; ctx.globalAlpha=0.7;
+  ctx.fillRect(ml+4, mt+4, 20, 3);
+  ctx.globalAlpha=1; ctx.fillStyle='#5A7080'; ctx.font='9px system-ui';
+  ctx.fillText('Gamme étalon', ml+28, mt+8);
+
+  // Unknown curve (red) or flat if negative
+  ctx.strokeStyle = '#E8313A'; ctx.lineWidth = 2.5; ctx.globalAlpha = 1;
+  ctx.beginPath();
+  if (unknownCt === null) {
+    // Flat negative
+    for (let c=1;c<=45;c++) {
+      const v = 0.02 + Math.random()*0.012;
+      const x = ml + (c-1)/44*cw;
+      const y = mt + ch*(1 - v*0.85);
+      c===1?ctx.moveTo(x,y):ctx.lineTo(x,y);
+    }
+  } else {
+    for (let c=1;c<=45;c++) {
+      const v = sigmoid(c, unknownCt) * 0.88 + 0.02 + (Math.random()*0.01);
+      const x = ml + (c-1)/44*cw;
+      const y = mt + ch*(1 - Math.min(v,1)*0.85);
+      c===1?ctx.moveTo(x,y):ctx.lineTo(x,y);
+    }
+  }
+  ctx.stroke();
+
+  // Ct marker for unknown
+  if (unknownCt !== null) {
+    const ctX = ml + (unknownCt-1)/44*cw;
+    ctx.strokeStyle='rgba(232,49,58,0.5)'; ctx.lineWidth=1; ctx.setLineDash([3,3]);
+    ctx.beginPath(); ctx.moveTo(ctX,mt); ctx.lineTo(ctX,mt+ch); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle='#E8313A'; ctx.font='bold 10px system-ui';
+    ctx.fillText(`Ct=${unknownCt}`, ctX+3, mt+14);
+  }
+
+  // Unknown legend
+  ctx.fillStyle='#E8313A'; ctx.fillRect(ml+4, mt+16, 20, 3);
+  ctx.fillStyle='#E8313A'; ctx.font='bold 9px system-ui';
+  ctx.fillText('Échantillon inconnu', ml+28, mt+22);
+}
+
+// ─── BUILD REF TABLE ─────────────────────────────────────────────────────
+function buildRefTable(highlightStds) {
+  const t = document.getElementById('c-ref-table');
+  t.innerHTML = '<thead><tr><th>Conc.</th><th>Ct</th></tr></thead>';
+  const tbody = document.createElement('tbody');
+  STANDARDS.forEach((s,i) => {
+    const tr = document.createElement('tr');
+    if (highlightStds.includes(i)) tr.className='highlight';
+    tr.innerHTML = `<td>${s.conc}</td><td>${s.ct.toFixed(2)}</td>`;
+    tbody.appendChild(tr);
+  });
+  t.appendChild(tbody);
+}
+
+// ─── BUILD CASE ──────────────────────────────────────────────────────────
+function buildCase() {
+  answered = false;
+  const c = CASES[current];
+  document.getElementById('c-badge').textContent = `Cas ${current+1} / ${CASES.length}`;
+  document.getElementById('c-title').textContent = c.title;
+  document.getElementById('c-feedback').style.display = 'none';
+  document.getElementById('btn-next').disabled = true;
+  document.getElementById('btn-next').textContent =
+    current < CASES.length-1 ? 'Cas suivant →' : 'Voir mon score →';
+
+  // Ct display
+  const ctEl = document.getElementById('c-ct-display');
+  if (c.ct === null) {
+    ctEl.innerHTML = '<span class="ct-negative">No Ct — Négatif</span>';
+  } else {
+    ctEl.innerHTML = `<span class="ct-big">${c.ct}</span>`;
+  }
+  document.getElementById('c-ct-hint').textContent = c.ctHint;
+
+  // Ref table
+  buildRefTable(c.highlightStds || []);
+
+  // Chart
+  const canvas = document.getElementById('c-canvas');
+  requestAnimationFrame(() => drawChart(canvas, c.ct));
+
+  // Options
+  const grid = document.getElementById('c-options'); grid.innerHTML='';
+  c.options.forEach(opt => {
+    const btn = document.createElement('button'); btn.className='opt-btn';
+    btn.style.whiteSpace='pre-line';
+    btn.textContent = opt.label;
+    btn.onclick = () => selectOpt(opt.value, btn, c);
+    grid.appendChild(btn);
+  });
+
+  document.getElementById('prog').style.width = Math.round((current/CASES.length)*100)+'%';
+  document.getElementById('prog-lbl').textContent = `Cas ${current+1} / ${CASES.length}`;
+}
+
+function selectOpt(value, btn, c) {
+  if (answered) return;
+  answered = true;
+  const isOk = value === c.answer;
+  if (isOk) score++;
+
+  document.querySelectorAll('.opt-btn').forEach(b => {
+    b.disabled = true;
+    if (b === btn) b.classList.add(isOk ? 'correct' : 'wrong');
+    else {
+      const bVal = c.options.find(o => o.label === b.textContent.replace(/\n/g,' ').trim() ||
+        b.textContent === o.label)?.value;
+      if (bVal === c.answer) b.classList.add('reveal');
+    }
+  });
+
+  // Force reveal correct answer
+  if (!isOk) {
+    document.querySelectorAll('.opt-btn').forEach(b => {
+      const opt = c.options.find(o => b.textContent === o.label || b.style.whiteSpace==='pre-line');
+      // Find by index
+    });
+    // Simpler: find correct by value
+    const allBtns = document.querySelectorAll('.opt-btn');
+    allBtns.forEach((b,i) => {
+      if (c.options[i]?.value === c.answer) b.classList.add('reveal');
+    });
+  }
+
+  const fb = document.getElementById('c-feedback');
+  fb.style.display='block'; fb.className='case-feedback '+(isOk?'ok':'err');
+  fb.textContent = isOk ? c.feedbackOk : c.feedbackErr;
+  document.getElementById('btn-next').disabled = false;
+}
+
+function nextCase() {
+  current++;
+  if (current >= CASES.length) showScore();
+  else { showScreen('s-case'); buildCase(); }
+}
+
+function showScore() {
+  document.getElementById('sc-num').textContent = score;
+  const pct = score/CASES.length;
+  const [msg,sub] = pct===1
+    ? ['🏆 Parfait !','Tu maîtrises la lecture de la gamme étalon comme un vrai technicien !']
+    : pct>=0.75
+    ? ['🎉 Très bien !','Excellente interprétation, relis le cas que tu as manqué.']
+    : pct>=0.5
+    ? ['👍 Bien joué !','Bon travail ! Rappel : compare toujours le Ct inconnu aux Ct de la gamme.']
+    : ['📚 Continue !','Relis la gamme étalon dans l\'introduction et retente !'];
+  document.getElementById('sc-msg').textContent = msg;
+  document.getElementById('sc-sub').textContent = sub;
+  document.getElementById('prog').style.width='100%';
+  document.getElementById('prog-lbl').textContent='Score final';
+  showScreen('s-score');
+}
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0,0);
+}
+
+function startGame() { showScreen('s-case'); buildCase(); }
+function restart() {
+  current=0; score=0; answered=false;
+  document.getElementById('prog').style.width='0%';
+  document.getElementById('prog-lbl').textContent='Introduction';
+  showScreen('s-intro');
+}
+</script>
+</body>
+</html>
