@@ -314,13 +314,14 @@ function drawChart(canvasEl, unknownCt) {
     ctx.fillText(lbl, 2, y+3);
   });
 
-  // Threshold line
-  const threshY = mt + ch * 0.25;
+  // Threshold line — calibrated so it crosses each curve exactly at its Ct
+  // At Ct: sigmoid=0.5, v = 0.5*0.88+0.02 = 0.46, y = mt+ch*(1-0.46*0.85) = mt+ch*0.609
+  const threshY = mt + ch * 0.609;
   ctx.strokeStyle='#D4537E'; ctx.lineWidth=1.2; ctx.setLineDash([5,3]);
   ctx.beginPath(); ctx.moveTo(ml,threshY); ctx.lineTo(W-mr,threshY); ctx.stroke();
   ctx.setLineDash([]);
   ctx.fillStyle='#D4537E'; ctx.font='bold 9px system-ui';
-  ctx.fillText('Threshold', ml+4, threshY-3);
+  ctx.fillText('Threshold = 0,01', ml+4, threshY-3);
 
   // Draw standard curves (blue, faded)
   const stdColors = ['#4A90D9','#5BA0E9','#6BB0F9','#7BBAF0','#8BCAE0','#9BDAD0','#ABE0C0'];
