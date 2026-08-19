@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>qPCR — La machine à amplifier</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: system-ui, sans-serif;
+  background: linear-gradient(135deg, #0D1F2D 0%, #1A3A4A 100%);
+  min-height: 100vh; padding: 1.5rem 1rem;
+  display: flex; justify-content: center; align-items: flex-start;
+}
+.card {
+  background: #F7F9FC; border-radius: 20px;
+  padding: 2rem; max-width: 780px; width: 100%;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+}
+h1 { font-size: 21px; font-weight: 700; color: #0D1F2D; margin-bottom: 4px; }
+.subtitle { font-size: 13px; color: #5A7080; margin-bottom: 1.75rem; line-height: 1.6; }
+
+/* ── Well ── */
+.well-wrap {
+  display: flex; flex-direction: column; align-items: center;
+  margin-bottom: 1.75rem;
+}
+
+.well-outer {
+  width: 260px; height: 300px;
+  border: 3px solid #7A9AAA;
+  border-top: none;
+  border-radius: 0 0 50% 50% / 0 0 40px 40px;
+  background: linear-gradient(180deg, #E8F4F8 0%, #C8E6F0 100%);
+  position: relative; overflow: hidden;
+  box-shadow: inset 0 4px 16px rgba(0,150,200,0.15), 0 6px 24px rgba(0,0,0,0.15);
+}
+
+/* Liquid fill */
+.well-liquid {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  background: linear-gradient(180deg, rgba(0,180,220,0.25) 0%, rgba(0,140,180,0.45) 100%);
+  transition: height 0.3s ease;
+  border-radius: 0 0 50% 50% / 0 0 38px 38px;
+}
+
+/* DNA strands container */
+#dna-container {
+  position: absolute; bottom: 0; left: 0; right: 0; top: 0;
+  pointer-events: none;
+}
+
+/* Individual DNA molecule */
+.dna-mol {
+  position: absolute;
+  width: 22px; height: 30px;
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: space-between;
+  transition: opacity 0.3s;
+}
+.dna-mol .strand {
+  width: 2px; height: 100%; background: #0097A7;
+  border-radius: 1px; position: absolute; left: 50%; transform: translateX(-50%);
+}
+.dna-mol .rung {
+  width: 14px; height: 2px; border-radius: 1px;
+  position: absolute; left: 50%; transform: translateX(-50%);
+}
+
+/* Glow effect on duplication */
+@keyframes pulse-glow {
+  0%   { box-shadow: inset 0 4px 16px rgba(0,200,255,0.1); }
+  50%  { box-shadow: inset 0 4px 16px rgba(0,200,255,0.5), 0 0 30px rgba(0,200,255,0.3); }
+  100% { box-shadow: inset 0 4px 16px rgba(0,200,255,0.1); }
+}
+.well-outer.pulse { animation: pulse-glow 0.4s ease; }
+
+/* Overflow indicator */
+.overflow-indicator {
+  position: absolute; top: 8px; left: 0; right: 0;
+  text-align: center; font-size: 11px; font-weight: 700;
+  color: #D4537E; opacity: 0; transition: opacity 0.3s;
+  pointer-events: none;
+}
+.overflow-indicator.show { opacity: 1; }
+
+/* ── Counter ── */
+.counter-wrap {
+  margin-top: 16px; text-align: center;
+}
+.counter-label { font-size: 12px; color: #5A7080; margin-bottom: 4px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; }
+.counter-value {
+  font-family: 'Courier New', monospace;
+  font-size: 28px; font-weight: 800; color: #0097A7;
+  transition: all 0.2s;
+  line-height: 1.1;
+}
+.counter-sci {
+  font-size: 13px; color: #7A9AAA; margin-top: 2px; font-family: 'Courier New', monospace;
+}
+.counter-doubles {
+  font-size: 12px; color: #888; margin-top: 4px;
+}
+
+/* ── Slider ── */
+.slider-section {
+  background: #fff; border-radius: 14px; border: 1.5px solid #D0DDE5;
+  padding: 1.25rem 1.5rem; margin-bottom: 1.5rem;
+}
+.slider-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 12px;
+}
+.slider-title { font-size: 14px; font-weight: 700; color: #0D1F2D; }
+.cycle-badge {
+  background: #0097A7; color: #fff; border-radius: 99px;
+  padding: 3px 14px; font-size: 13px; font-weight: 700;
+  font-family: 'Courier New', monospace;
+  min-width: 80px; text-align: center;
+}
+
+input[type=range] {
+  width: 100%; height: 6px; appearance: none; -webkit-appearance: none;
+  background: linear-gradient(90deg, #0097A7 var(--pct, 0%), #D0DDE5 var(--pct, 0%));
+  border-radius: 99px; outline: none; cursor: pointer;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: #0097A7; border: 3px solid #fff;
+  box-shadow: 0 2px 8px rgba(0,151,167,0.4); cursor: pointer;
+  transition: transform 0.1s;
+}
+input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.15); }
+
+.cycle-ticks {
+  display: flex; justify-content: space-between;
+  margin-top: 6px; font-size: 10px; color: #9AB0BE;
+}
+
+/* ── Phase indicator ── */
+.phase-bar {
+  display: flex; border-radius: 8px; overflow: hidden;
+  height: 8px; margin-top: 12px; gap: 2px;
+}
+.phase-seg {
+  height: 100%; border-radius: 4px; flex: 1; opacity: 0.35; transition: opacity 0.2s;
+}
+.phase-seg.active { opacity: 1; }
+.phase-lag  { background: #9AB0BE; }
+.phase-exp  { background: #0097A7; }
+.phase-plat { background: #6C3FC5; }
+.phase-labels {
+  display: flex; justify-content: space-between; margin-top: 4px;
+  font-size: 10px; color: #9AB0BE;
+}
+.phase-labels span { flex: 1; text-align: center; }
+
+/* ── Info box ── */
+.info-row {
+  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;
+  margin-bottom: 1.5rem;
+}
+.info-box {
+  background: #fff; border-radius: 10px; border: 1.5px solid #D0DDE5;
+  padding: 12px; text-align: center;
+}
+.info-box .ib-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #7A9AAA; margin-bottom: 4px; }
+.info-box .ib-val { font-size: 18px; font-weight: 800; color: #0D1F2D; font-family: 'Courier New', monospace; }
+.info-box .ib-sub { font-size: 10px; color: #9AB0BE; margin-top: 2px; }
+
+/* ── Start amount selector ── */
+.start-row {
+  background: #fff; border-radius: 14px; border: 1.5px solid #D0DDE5;
+  padding: 1rem 1.5rem; margin-bottom: 1.5rem;
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+}
+.start-label { font-size: 13px; font-weight: 600; color: #0D1F2D; flex-shrink: 0; }
+.start-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+.start-btn {
+  padding: 5px 12px; border-radius: 99px; border: 1.5px solid #D0DDE5;
+  background: #fff; font-size: 12px; font-weight: 600; cursor: pointer;
+  color: #5A7080; transition: all 0.15s;
+}
+.start-btn.active { background: #0097A7; border-color: #0097A7; color: #fff; }
+.start-btn:hover { border-color: #0097A7; }
+
+/* ── Callout ── */
+.callout {
+  background: #E3F6F8; border-left: 4px solid #0097A7;
+  border-radius: 0 10px 10px 0; padding: 10px 14px;
+  font-size: 13px; line-height: 1.6; color: #0D1F2D; margin-top: 0.5rem;
+}
+.callout strong { color: #0097A7; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>🧪 La machine à amplifier — PCR</h1>
+  <p class="subtitle">Déplace le curseur pour avancer dans les cycles PCR et observe l'ADN se multiplier dans le puits en temps réel.</p>
+
+  <!-- Start amount -->
+  <div class="start-row">
+    <span class="start-label">Quantité de départ :</span>
+    <div class="start-btns">
+      <button class="start-btn active" onclick="setStart(1, this)">1 copie</button>
+      <button class="start-btn" onclick="setStart(10, this)">10 copies</button>
+      <button class="start-btn" onclick="setStart(100, this)">100 copies</button>
+      <button class="start-btn" onclick="setStart(1000, this)">1 000 copies</button>
+    </div>
+  </div>
+
+  <!-- Well -->
+  <div class="well-wrap">
+    <div class="well-outer" id="well">
+      <div class="well-liquid" id="well-liquid" style="height:4%"></div>
+      <canvas id="dna-canvas" style="position:absolute;top:0;left:0;width:100%;height:100%;"></canvas>
+      <div class="overflow-indicator" id="overflow">⚠️ Trop d'ADN à afficher !</div>
+    </div>
+    <div class="counter-wrap">
+      <div class="counter-label">Nombre de copies d'ADN</div>
+      <div class="counter-value" id="counter-val">1</div>
+      <div class="counter-sci" id="counter-sci"></div>
+      <div class="counter-doubles" id="counter-doubles">Cycle 0 — point de départ</div>
+    </div>
+  </div>
+
+  <!-- Info row -->
+  <div class="info-row">
+    <div class="info-box">
+      <div class="ib-title">Cycle actuel</div>
+      <div class="ib-val" id="info-cycle">0</div>
+      <div class="ib-sub">sur 40</div>
+    </div>
+    <div class="info-box">
+      <div class="ib-title">Doublement</div>
+      <div class="ib-val" id="info-factor">×1</div>
+      <div class="ib-sub">depuis le départ</div>
+    </div>
+    <div class="info-box">
+      <div class="ib-title">Phase</div>
+      <div class="ib-val" id="info-phase" style="font-size:13px;">Initiale</div>
+      <div class="ib-sub" id="info-phase-sub">Avant amplification</div>
+    </div>
+  </div>
+
+  <!-- Slider -->
+  <div class="slider-section">
+    <div class="slider-header">
+      <span class="slider-title">🔬 Curseur de cycle PCR</span>
+      <span class="cycle-badge" id="cycle-badge">Cycle 0</span>
+    </div>
+    <input type="range" id="cycle-slider" min="0" max="40" value="0" step="1"
+      oninput="updateCycle(this.value)">
+    <div class="cycle-ticks">
+      <span>0</span><span>5</span><span>10</span><span>15</span><span>20</span>
+      <span>25</span><span>30</span><span>35</span><span>40</span>
+    </div>
+    <!-- Phase bar -->
+    <div class="phase-bar" id="phase-bar">
+      <div class="phase-seg phase-lag active" id="seg-lag" style="flex:5"></div>
+      <div class="phase-seg phase-exp"  id="seg-exp"  style="flex:20"></div>
+      <div class="phase-seg phase-plat" id="seg-plat" style="flex:15"></div>
+    </div>
+    <div class="phase-labels">
+      <span style="flex:5;color:#9AB0BE">Initiale</span>
+      <span style="flex:20;color:#0097A7">Exponentielle</span>
+      <span style="flex:15;color:#6C3FC5">Plateau</span>
+    </div>
+  </div>
+
+  <div class="callout" id="callout">
+    🧬 <strong>Avant de commencer :</strong> en PCR, chaque cycle double la quantité d'ADN. Après N cycles, on obtient <strong>départ × 2ᴺ copies</strong>. Déplace le curseur pour le voir !
+  </div>
+</div>
+
+<script>
+let startCopies = 1;
+const MAX_CYCLES = 40;
+const WELL_W = 260, WELL_H = 300;
+
+// DNA molecule colors for rungs
+const RUNG_COLORS = ['#0097A7','#00BCD4','#1D9E75','#6C3FC5','#EC4899','#F59E0B'];
+
+function setStart(n, btn) {
+  document.querySelectorAll('.start-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  startCopies = n;
+  const slider = document.getElementById('cycle-slider');
+  updateCycle(slider.value);
+}
+
+function getCopies(cycle) {
+  return startCopies * Math.pow(2, cycle);
+}
+
+function toSci(n) {
+  if (n < 1000) return '';
+  const exp = Math.floor(Math.log10(n));
+  const mant = (n / Math.pow(10, exp)).toFixed(2);
+  return `≈ ${mant} × 10${superscript(exp)}`;
+}
+
+function superscript(n) {
+  const sup = ['⁰','¹','²','³','⁴','⁵','⁶','⁷','⁸','⁹'];
+  return String(n).split('').map(d=>sup[+d]||d).join('');
+}
+
+function formatBig(n) {
+  if (n >= 1e12) return (n/1e12).toFixed(1) + ' billions de milliards';
+  if (n >= 1e9)  return (n/1e9).toFixed(1)  + ' milliards';
+  if (n >= 1e6)  return (n/1e6).toFixed(1)  + ' millions';
+  if (n >= 1e3)  return n.toLocaleString('fr-FR');
+  return String(n);
+}
+
+function getPhase(cycle) {
+  if (cycle <= 4)  return { name:'Initiale',     sub:'Avant amplification', color:'#9AB0BE' };
+  if (cycle <= 24) return { name:'Exponentielle', sub:'Doublement à chaque cycle', color:'#0097A7' };
+  return              { name:'Plateau',         sub:'Ressources épuisées', color:'#6C3FC5' };
+}
+
+function drawDNA(canvas, count) {
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0,0,W,H);
+
+  const MAX_SHOWN = 120;
+  const shown = Math.min(count, MAX_SHOWN);
+  if (shown === 0) return;
+
+  // Pack molecules into well area (trapezoid approximation)
+  // Use simple grid with some random offset
+  const molW = 20, molH = 28;
+  const cols = Math.floor(W / (molW + 4));
+  const rows = Math.ceil(shown / cols);
+
+  let drawn = 0;
+  for (let r = 0; r < rows && drawn < shown; r++) {
+    // Width of well at this row (tapered at bottom)
+    const frac = (H - (r+0.5)*(molH+4)) / H;
+    const rowWidth = W * (0.5 + 0.5 * Math.max(0, frac));
+    const rowCols = Math.max(1, Math.floor(rowWidth / (molW+4)));
+    const rowX = (W - rowCols*(molW+4)) / 2;
+
+    for (let c = 0; c < rowCols && drawn < shown; c++, drawn++) {
+      const x = rowX + c*(molW+4) + 2 + (Math.random()*3-1.5);
+      const y = H - (r+1)*(molH+5) - 10 + (Math.random()*4-2);
+      if (y < 0) continue;
+      drawMolecule(ctx, x, y, molW, molH, drawn);
+    }
+  }
+}
+
+function drawMolecule(ctx, x, y, w, h, idx) {
+  const color = RUNG_COLORS[idx % RUNG_COLORS.length];
+  const cx = x + w/2;
+
+  // Left strand
+  ctx.beginPath();
+  ctx.moveTo(cx - 3, y);
+  ctx.bezierCurveTo(cx - 6, y+h*0.25, cx+2, y+h*0.5, cx-3, y+h*0.75);
+  ctx.bezierCurveTo(cx-6, y+h, cx+2, y+h, cx-3, y+h);
+  ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.stroke();
+
+  // Right strand
+  ctx.beginPath();
+  ctx.moveTo(cx + 3, y);
+  ctx.bezierCurveTo(cx + 6, y+h*0.25, cx-2, y+h*0.5, cx+3, y+h*0.75);
+  ctx.bezierCurveTo(cx+6, y+h, cx-2, y+h, cx+3, y+h);
+  ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.stroke();
+
+  // Rungs (base pairs)
+  const numRungs = 4;
+  for (let i = 0; i < numRungs; i++) {
+    const ry = y + (i+0.5) * h/numRungs;
+    // Approximate x positions on the strands at this y
+    const t = (i+0.5)/numRungs;
+    const lx = cx - 3 + Math.sin(t*Math.PI*2) * (-3);
+    const rx = cx + 3 + Math.sin(t*Math.PI*2) * 3;
+    ctx.beginPath();
+    ctx.moveTo(lx, ry); ctx.lineTo(rx, ry);
+    ctx.strokeStyle = color; ctx.lineWidth = 1.2;
+    ctx.globalAlpha = 0.7; ctx.stroke(); ctx.globalAlpha = 1;
+  }
+}
+
+function updateCycle(val) {
+  const cycle = parseInt(val);
+  const copies = getCopies(cycle);
+  const factor = Math.pow(2, cycle);
+  const phase = getPhase(cycle);
+
+  // Update slider gradient
+  const slider = document.getElementById('cycle-slider');
+  slider.style.setProperty('--pct', (cycle/MAX_CYCLES*100)+'%');
+
+  // Cycle badge
+  document.getElementById('cycle-badge').textContent = `Cycle ${cycle}`;
+  document.getElementById('info-cycle').textContent = cycle;
+  document.getElementById('info-factor').textContent = `×${formatBig(factor)}`;
+  document.getElementById('info-phase').textContent = phase.name;
+  document.getElementById('info-phase').style.color = phase.color;
+  document.getElementById('info-phase-sub').textContent = phase.sub;
+
+  // Counter
+  document.getElementById('counter-val').textContent = formatBig(copies);
+  document.getElementById('counter-sci').textContent = toSci(copies);
+  document.getElementById('counter-doubles').textContent =
+    cycle === 0
+      ? 'Cycle 0 — point de départ'
+      : `Après ${cycle} cycle${cycle>1?'s':''} : ${startCopies} × 2${superscript(cycle)}`;
+
+  // Well liquid level (log scale, max at cycle 30)
+  const liquidPct = Math.min(4 + (cycle/MAX_CYCLES)*88, 92);
+  document.getElementById('well-liquid').style.height = liquidPct + '%';
+
+  // DNA canvas
+  const canvas = document.getElementById('dna-canvas');
+  canvas.width  = 260;
+  canvas.height = 300;
+  const shown = Math.min(copies, 120);
+  drawDNA(canvas, shown);
+
+  // Overflow
+  const ov = document.getElementById('overflow');
+  ov.classList.toggle('show', copies > 120);
+
+  // Phase bar highlight
+  document.getElementById('seg-lag').classList.toggle('active', cycle <= 4);
+  document.getElementById('seg-exp').classList.toggle('active', cycle > 4 && cycle <= 24);
+  document.getElementById('seg-plat').classList.toggle('active', cycle > 24);
+
+  // Callout
+  updateCallout(cycle, copies, phase);
+}
+
+function updateCallout(cycle, copies, phase) {
+  const el = document.getElementById('callout');
+  if (cycle === 0) {
+    el.innerHTML = `🧬 <strong>Avant de commencer :</strong> en PCR, chaque cycle double la quantité d'ADN. Après N cycles, on obtient <strong>départ × 2ᴺ copies</strong>. Déplace le curseur !`;
+  } else if (cycle <= 4) {
+    el.innerHTML = `🌡️ <strong>Phase initiale :</strong> les premiers cycles chauffent et dénaturent l'ADN. L'amplification n'est pas encore visible.`;
+  } else if (cycle <= 24) {
+    el.innerHTML = `📈 <strong>Phase exponentielle :</strong> chaque cycle double exactement la quantité. ${startCopies} copie${startCopies>1?'s':''} de départ → <strong>${formatBig(copies)} copies</strong> au cycle ${cycle}. C'est ici que le Ct est mesuré !`;
+  } else {
+    el.innerHTML = `📊 <strong>Phase plateau :</strong> les ressources de la réaction (enzymes, nucléotides) s'épuisent. L'amplification ralentit et plafonne. Le signal fluorescent ne monte plus.`;
+  }
+}
+
+// Init
+updateCycle(0);
+</script>
+</body>
+</html>
